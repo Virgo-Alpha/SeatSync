@@ -1,0 +1,25 @@
+# Build
+bin/
+obj/
+
+# Rider
+.idea/
+*.sln.iml
+
+# User files
+*.user
+*.userosscache
+*.suo
+
+# Logs
+*.log
+
+# EF migrations snapshot backup
+*.bak
+
+# Docker
+**/docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db

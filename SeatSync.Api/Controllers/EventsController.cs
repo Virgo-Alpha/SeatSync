@@ -13,7 +13,12 @@ public sealed class EventsController : ControllerBase
     private readonly SeatSyncDbContext _db;
 
     public EventsController(SeatSyncDbContext db) => _db = db;
-
+    
+    /// <summary>
+    /// Creates a new event.
+    /// </summary>
+    /// <param name="request">Event creation payload.</param>
+    /// <returns>The created event.</returns>
     [HttpPost]
     public async Task<ActionResult<EventResponse>> Create([FromBody] CreateEventRequest request, CancellationToken ct)
     {

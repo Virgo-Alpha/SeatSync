@@ -1,5 +1,8 @@
 namespace SeatSync.Domain.Entities;
 
+/// <summary>
+/// Represents a ticketed event in the system.
+/// </summary>
 public sealed class Event
 {
     public Guid Id { get; private set; } = Guid.NewGuid();

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SeatSync.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using SeatSync.Infrastructure.Data;
 namespace SeatSync.Infrastructure.Migrations
 {
     [DbContext(typeof(SeatSyncDbContext))]
-    partial class SeatSyncDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260221195738_UpdateEntities")]
+    partial class UpdateEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

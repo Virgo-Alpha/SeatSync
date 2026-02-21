@@ -63,13 +63,18 @@ The system must guarantee:
 docker compose up -d
 ```
 
-2. Apply migrations:
+2. Add any migrations
+```
+dotnet ef migrations add {migration_name} -p SeatSync.Infrastructure -s SeatSync.Api
+```
+
+3. Apply migrations:
 
 ```
 dotnet ef database update -p SeatSync.Infrastructure -s SeatSync.Api
 ```
 
-3. Run API:
+4. Run API:
 
 ```
 dotnet run --project SeatSync.Api

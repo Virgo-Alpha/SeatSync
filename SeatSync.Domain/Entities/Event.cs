@@ -6,7 +6,6 @@ namespace SeatSync.Domain.Entities;
 public sealed class Event
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
-
     public string Name { get; private set; } = default!;
     public DateTimeOffset StartsAt { get; private set; }
 

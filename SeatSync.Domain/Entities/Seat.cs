@@ -1,9 +1,3 @@
-// Add Seat model with properties: 
-// Id (Guid)
-// EventId 
-//     Section, Row, Number
-// Optional: X, Y for map positioning
-
 namespace SeatSync.Domain.Entities;
 
 public sealed class Seat
@@ -14,6 +8,8 @@ public sealed class Seat
     public string Section { get; private set; } = default!;
     public string Row { get; private set; } = default!;
     public string Number { get; private set; } = default!;
+    
+    public DateTimeOffset CreatedAt { get; private set; }
     
     // Optional map coordinates
     public decimal? X { get; private set; }
@@ -45,6 +41,8 @@ public sealed class Seat
         Number = number.Trim();
         X = x;
         Y = y;
+        
+        CreatedAt = DateTimeOffset.UtcNow; 
     }
 
     public void SetPosition(decimal? x, decimal? y)
@@ -52,6 +50,7 @@ public sealed class Seat
         X = x;
         Y = y;
     }
-
+    
+    public string GetDisplayLabel() => $"{Section}-{Row}-{Number}";
 
 }

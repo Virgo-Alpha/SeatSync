@@ -1,3 +1,4 @@
+using SeatSync.Domain.Enums;
 namespace SeatSync.Domain.Entities;
 
 public sealed class Hold
@@ -12,14 +13,6 @@ public sealed class Hold
     // Encapsulated collection: prevents outside code from calling .Add()
     private readonly List<Guid> _seatIds = new();
     public IReadOnlyCollection<Guid> SeatIds => _seatIds.AsReadOnly();
-    
-    public enum HoldState
-    {
-        Active,
-        Expired,
-        Converted,
-        Cancelled
-    }
     
     public Hold(Guid eventId, Guid userId, List<Guid> seatIds, TimeSpan holdDuration)
     {

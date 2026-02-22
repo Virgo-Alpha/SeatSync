@@ -1,3 +1,4 @@
+using SeatSync.Domain.Enums;
 namespace SeatSync.Domain.Entities;
 
 public sealed class Order
@@ -20,15 +21,6 @@ public sealed class Order
 
     private readonly List<Guid> _seatIds = new();
     public IReadOnlyCollection<Guid> SeatIds => _seatIds.AsReadOnly();
-
-    public enum PaymentState
-    {
-        Pending,
-        Authorized,
-        Captured,
-        Failed,
-        Refunded
-    }
     
     public Order(
         Guid eventId, 

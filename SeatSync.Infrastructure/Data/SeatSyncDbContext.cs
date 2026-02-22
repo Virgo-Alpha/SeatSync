@@ -9,6 +9,10 @@ public sealed class SeatSyncDbContext : DbContext
 
     public DbSet<Event> Events => Set<Event>();
     public DbSet<Seat> Seats => Set<Seat>();
+    public DbSet<SeatStatus> SeatStatuses => Set<SeatStatus>();
+    public DbSet<Ticket> Tickets => Set<Ticket>();
+    public DbSet<Hold> Holds => Set<Hold>();
+    public DbSet<Order> Orders => Set<Order>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

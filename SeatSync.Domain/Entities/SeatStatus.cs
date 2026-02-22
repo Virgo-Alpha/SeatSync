@@ -1,3 +1,4 @@
+using SeatSync.Domain.Enums;
 namespace SeatSync.Domain.Entities;
 
 public sealed class SeatStatus
@@ -22,17 +23,19 @@ public sealed class SeatStatus
     
     /// </summary>
     public byte[] RowVersion { get; private set; } = default!;
-    
-    public enum SeatState
-    {
-        Available = 0,
-        Held = 1,
-        Sold = 2
-    }
 
     public bool IsAvailable() => State == SeatState.Available;
 
     public bool IsHeldBy(Guid holdId) => State == SeatState.Held && HoldId == holdId;
+    
+    public SeatStatus(Guid eventId, Guid seatId, SeatState state)
+    {
+        Id = Guid.NewGuid();
+        EventId = eventId;
+        SeatId = seatId;
+        State = state;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
 
     public void MarkHeld(Guid holdId)
     {

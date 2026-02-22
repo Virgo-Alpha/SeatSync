@@ -8,10 +8,18 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddDbContext<SeatSyncDbContext>(opt =>
+builder.Services.AddSingleton(TimeProvider.System);
+
+if (!builder.Environment.IsEnvironment("Testing"))
 {
-    opt.UseSqlServer(builder.Configuration.GetConnectionString("SeatSyncDb"));
-});
+    builder.Services.AddDbContext<SeatSyncDbContext>(opt =>
+        opt.UseSqlServer(builder.Configuration.GetConnectionString("SeatSyncDb")));
+}
+else
+{
+    builder.Services.AddDbContext<SeatSyncDbContext>(opt =>
+        opt.UseSqlServer(builder.Configuration.GetConnectionString("SeatSyncDb")));
+}
 
 builder.Services.AddSwaggerGen(c =>
 {

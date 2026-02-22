@@ -80,6 +80,12 @@ dotnet ef database update -p SeatSync.Infrastructure -s SeatSync.Api
 dotnet run --project SeatSync.Api
 ```
 
+5. Run Tests:
+
+```
+dotnet test
+```
+
 Swagger UI available at:
 
 ```

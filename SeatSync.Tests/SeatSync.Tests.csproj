@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="bunit" Version="1.39.5" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="FluentAssertions" Version="8.8.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.3" />
@@ -24,7 +25,8 @@
   <ItemGroup>
     <ProjectReference Include="..\SeatSync.Domain\SeatSync.Domain.csproj" />
     <ProjectReference Include="..\SeatSync.Infrastructure\SeatSync.Infrastructure.csproj" />
-    <ProjectReference Include="..\SeatSync.Api\SeatSync.Api.csproj" />
+    <ProjectReference Include="..\SeatSync.Api\SeatSync.Api.csproj" Aliases="global,SeatSyncApi" />
+    <ProjectReference Include="..\SeatSync.Web\SeatSync.Web.csproj" />
   </ItemGroup>
 
 </Project>

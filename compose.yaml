@@ -9,6 +9,50 @@
       - "1433:1433"
     volumes:
       - seatsync_sql_data:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$${SA_PASSWORD}\" -Q \"SELECT 1\" -b -o /dev/null"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
+    restart: unless-stopped
+
+  api:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    container_name: seatsync-api
+    working_dir: /src
+    command: dotnet run --project SeatSync.Api --no-launch-profile
+    volumes:
+      - ./:/src
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__SeatSyncDb: Server=sqlserver,1433;Database=SeatSyncDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
+    ports:
+      - "5084:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    container_name: seatsync-web
+    working_dir: /src
+    command: dotnet run --project SeatSync.Web --no-launch-profile
+    volumes:
+      - ./:/src
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "5186:8080"
+    depends_on:
+      - api
     restart: unless-stopped
 
 volumes:

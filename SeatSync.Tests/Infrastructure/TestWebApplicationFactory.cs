@@ -1,3 +1,5 @@
+extern alias SeatSyncApi;
+
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -9,7 +11,7 @@ using SeatSync.Infrastructure.Data;
 namespace SeatSync.Tests.Infrastructure;
 
 public class TestWebApplicationFactory
-    : WebApplicationFactory<Program>
+    : WebApplicationFactory<SeatSyncApi::Program>
 {
     private SqliteConnection? _connection;
 

@@ -1,0 +1,76 @@
+@page "/"
+@page "/seating"
+@rendermode InteractiveServer
+@using SeatSync.Web.Models
+
+<PageTitle>Seating Chart</PageTitle>
+
+<div class="venue-page">
+    <h1>Seating Chart</h1>
+    <p>Click an available seat to select it. Click again to release it.</p>
+
+    <div class="venue-shell">
+        <header class="stage">STAGE</header>
+
+        <div class="venue-markers venue-markers--top">
+            <span class="marker marker--fire">FIRE ESCAPE LEFT</span>
+            <span class="marker marker--fire">FIRE ESCAPE RIGHT</span>
+        </div>
+
+        @* Keep the chart in a centered lane so it reads like a real auditorium. *@
+        <div class="seating-lane">
+            <SeatingChart Seats="_seats" SeatsChanged="OnSeatsChanged" />
+        </div>
+
+        <div class="venue-markers venue-markers--bottom">
+            <span class="marker marker--entry">ENTRY A</span>
+            <span class="marker marker--entry">ENTRY B</span>
+            <span class="marker marker--exit">EXIT A</span>
+            <span class="marker marker--exit">EXIT B</span>
+        </div>
+    </div>
+
+    <p class="selection-summary">
+        Selected Seats: @_seats.Count(s => s.State == SeatVisualState.Selected)
+    </p>
+</div>
+
+@code {
+    private List<SeatViewModel> _seats = [];
+
+    protected override void OnInitialized()
+    {
+        _seats = BuildInitialSeatMap();
+    }
+
+    private static List<SeatViewModel> BuildInitialSeatMap()
+    {
+        var seats = new List<SeatViewModel>();
+
+        foreach (var row in new[] { "A", "B", "C", "D", "E", "F", "G" })
+        {
+            for (var number = 1; number <= 12; number++)
+            {
+                seats.Add(new SeatViewModel
+                {
+                    Section = "Orchestra",
+                    Row = row,
+                    Number = number.ToString(),
+                    State = SeatVisualState.Available
+                });
+            }
+        }
+
+        // Seed a few occupied states so users can validate disabled styling/behavior.
+        seats.First(s => s.Row == "A" && s.Number == "1").State = SeatVisualState.Held;
+        seats.First(s => s.Row == "A" && s.Number == "2").State = SeatVisualState.Booked;
+        seats.First(s => s.Row == "B" && s.Number == "3").State = SeatVisualState.Held;
+
+        return seats;
+    }
+
+    private static Task OnSeatsChanged(IReadOnlyList<SeatViewModel> _)
+    {
+        return Task.CompletedTask;
+    }
+}

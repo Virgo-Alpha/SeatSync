@@ -1,0 +1,89 @@
+@using SeatSync.Web.Models
+
+<div class="seating-wrapper">
+    @foreach (var sectionGroup in Seats.GroupBy(s => s.Section).OrderBy(g => g.Key))
+    {
+        <section class="seating-section">
+            <h2>@sectionGroup.Key Section</h2>
+
+            @foreach (var rowGroup in sectionGroup.GroupBy(s => s.Row).OrderBy(g => g.Key))
+            {
+                var orderedSeats = GetOrderedSeats(rowGroup).ToList();
+                var aisleIndex = orderedSeats.Count / 2;
+                var leftSideSeats = orderedSeats.Take(aisleIndex);
+                var rightSideSeats = orderedSeats.Skip(aisleIndex);
+
+                <div class="seat-row">
+                    <span class="row-label">Row @rowGroup.Key</span>
+                    <div class="seat-row-main">
+                        <div class="seat-cluster">
+                            @foreach (var seat in leftSideSeats)
+                            {
+                                <button class="@GetSeatCssClass(seat)"
+                                        type="button"
+                                        disabled="@(!seat.IsInteractive)"
+                                        @onclick="() => OnSeatClickedAsync(seat)"
+                                        aria-label="Seat @seat.SeatId is @seat.State">
+                                    @seat.Number
+                                </button>
+                            }
+                        </div>
+
+                        <div class="aisle" aria-hidden="true"></div>
+
+                        <div class="seat-cluster">
+                            @foreach (var seat in rightSideSeats)
+                            {
+                                <button class="@GetSeatCssClass(seat)"
+                                        type="button"
+                                        disabled="@(!seat.IsInteractive)"
+                                        @onclick="() => OnSeatClickedAsync(seat)"
+                                        aria-label="Seat @seat.SeatId is @seat.State">
+                                    @seat.Number
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<SeatViewModel> Seats { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<IReadOnlyList<SeatViewModel>> SeatsChanged { get; set; }
+
+    private async Task OnSeatClickedAsync(SeatViewModel seat)
+    {
+        // Held/booked seats are intentionally non-interactive in the UI.
+        if (!SeatStateRules.TryToggle(seat))
+        {
+            return;
+        }
+
+        if (SeatsChanged.HasDelegate)
+        {
+            await SeatsChanged.InvokeAsync(Seats);
+        }
+    }
+
+    private static string GetSeatCssClass(SeatViewModel seat) =>
+        $"seat {SeatStateRules.ToCssClass(seat.State)}";
+
+    private static IEnumerable<SeatViewModel> GetOrderedSeats(IEnumerable<SeatViewModel> seats)
+    {
+        // Seat numbers are stored as strings, so we parse first to avoid lexicographic ordering (1,10,11,2...).
+        return seats
+            .OrderBy(GetSeatNumberSortKey)
+            .ThenBy(s => s.Number, StringComparer.Ordinal);
+    }
+
+    private static int GetSeatNumberSortKey(SeatViewModel seat) =>
+        int.TryParse(seat.Number, out var parsed)
+            ? parsed
+            : int.MaxValue;
+}

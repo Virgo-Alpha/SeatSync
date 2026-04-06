@@ -57,40 +57,50 @@ The system must guarantee:
 
 ### Development Setup
 
-1. Start SQL Server:
+1. Start full stack (SQL Server + API + Blazor Web):
 
 ```
 docker compose up -d
 ```
 
-2. Add any migrations
-```
-dotnet ef migrations add {migration_name} -p SeatSync.Infrastructure -s SeatSync.Api
-```
-
-3. Apply migrations:
+2. Open:
 
 ```
-dotnet ef database update -p SeatSync.Infrastructure -s SeatSync.Api
+http://localhost:5186/seating
 ```
 
-4. Run API:
+3. Swagger UI:
 
 ```
-dotnet run --project SeatSync.Api
+http://localhost:5084/swagger
 ```
 
-5. Run Tests:
+4. Stop:
+
+```
+docker compose down
+```
+
+5. Check service status/logs:
+
+```
+docker compose ps
+docker compose logs -f api
+docker compose logs -f web
+```
+
+6. Run Tests:
 
 ```
 dotnet test
 ```
 
-Swagger UI available at:
+Notes:
 
-```
-http://localhost:5084/swagger
-```
+* API startup now applies EF Core migrations automatically (with retry) so compose bootstraps the database schema.
+* `api` and `web` run in .NET SDK containers via `dotnet run` (source is bind-mounted), so code changes are reflected without rebuilding images.
+* If you add a new migration, generate it as usual:
+  `dotnet ef migrations add {migration_name} -p SeatSync.Infrastructure -s SeatSync.Api`
 
 ---
 
@@ -101,3 +111,31 @@ http://localhost:5084/swagger
 * Strong consistency guarantees
 * Explicit transactional boundaries
 * Database-first invariants
+
+---
+
+### Blazor Seating Chart (UI)
+
+`SeatSync.Web` includes an interactive seating chart page at `/seating`.
+
+Seat states:
+
+* `Available`: can be clicked to become `Selected`
+* `Selected`: can be clicked to become `Available`
+* `Held`: disabled/non-interactive
+* `Booked`: disabled/non-interactive
+
+Current limitation:
+
+* Seat interactions are in-memory UI state only for now (no persistence or reservation API integration yet).
+
+---
+
+### UI Testing Criteria
+
+1. Start the Blazor app and navigate to `/seating`.
+2. Verify `Available`, `Selected`, `Held`, and `Booked` seats each have distinct visual styles.
+3. Click an available seat and confirm it changes visually to selected.
+4. Click the same selected seat and confirm it returns to available.
+5. Verify held and booked seats are disabled and cannot be toggled.
+6. Check the page at desktop and mobile widths to confirm the seat grid remains usable.

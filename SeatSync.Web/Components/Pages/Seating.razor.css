@@ -1,0 +1,82 @@
+.venue-page {
+    display: grid;
+    gap: 1rem;
+}
+
+.venue-shell {
+    border: 1px solid #d3dce5;
+    border-radius: 16px;
+    padding: 1rem 1.25rem 1.25rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f5f9fc 100%);
+    display: grid;
+    gap: 1rem;
+}
+
+.stage {
+    text-align: center;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    padding: 0.75rem;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #1e2d3b 0%, #31475b 100%);
+    color: #f8fbff;
+}
+
+.venue-markers {
+    display: flex;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.venue-markers--top {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+}
+
+.marker {
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+}
+
+.marker--entry {
+    color: #0f5c8e;
+    border-color: #99cae8;
+    background: #e8f6ff;
+}
+
+.marker--exit {
+    color: #3d6125;
+    border-color: #b9d79f;
+    background: #edf9e2;
+}
+
+.marker--fire {
+    color: #842727;
+    border-color: #e7aaaa;
+    background: #ffecec;
+}
+
+.seating-lane {
+    display: flex;
+    justify-content: center;
+}
+
+@media (max-width: 760px) {
+    .venue-shell {
+        padding: 0.85rem;
+    }
+
+    .stage {
+        font-size: 0.9rem;
+    }
+
+    .venue-markers--top {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}

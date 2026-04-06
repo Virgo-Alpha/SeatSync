@@ -2,6 +2,9 @@
 @page "/seating"
 @rendermode InteractiveServer
 @using SeatSync.Web.Models
+@using SeatSync.Web.Models.Api
+@using SeatSync.Web.Services
+@inject ISeatSyncApiClient ApiClient
 
 <PageTitle>Seating Chart</PageTitle>
 
@@ -19,7 +22,18 @@
 
         @* Keep the chart in a centered lane so it reads like a real auditorium. *@
         <div class="seating-lane">
-            <SeatingChart Seats="_seats" SeatsChanged="OnSeatsChanged" />
+            @if (_isLoading)
+            {
+                <p class="status-message">Loading seats...</p>
+            }
+            else if (_seats.Count == 0)
+            {
+                <p class="status-message status-message--error">No seats were returned by the backend API.</p>
+            }
+            else
+            {
+                <SeatingChart Seats="_seats" SeatsChanged="OnSeatsChanged" />
+            }
         </div>
 
         <div class="venue-markers venue-markers--bottom">
@@ -33,44 +47,158 @@
     <p class="selection-summary">
         Selected Seats: @_seats.Count(s => s.State == SeatVisualState.Selected)
     </p>
+
+    <button class="reserve-button"
+            type="button"
+            disabled="@(_isLoading || _isSubmitting || _activeEventId == Guid.Empty || !_seats.Any(s => s.State == SeatVisualState.Selected))"
+            @onclick="ReserveSelectedSeatsAsync">
+        @(_isSubmitting ? "Reserving..." : "Reserve Selected Seats")
+    </button>
+
+    @if (!string.IsNullOrWhiteSpace(_statusMessage))
+    {
+        <p class="@GetStatusCssClass()">@_statusMessage</p>
+    }
 </div>
 
 @code {
+    private readonly Guid _userId = Guid.Parse("ec880f1f-8a06-419f-97d0-68c3ef548b15");
     private List<SeatViewModel> _seats = [];
+    private Guid _activeEventId;
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+    private string _statusMessage = string.Empty;
+    private bool _isErrorMessage;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _seats = BuildInitialSeatMap();
+        await LoadSeatMapAsync();
     }
 
-    private static List<SeatViewModel> BuildInitialSeatMap()
+    private async Task LoadSeatMapAsync()
     {
-        var seats = new List<SeatViewModel>();
+        _isLoading = true;
+        _statusMessage = string.Empty;
 
-        foreach (var row in new[] { "A", "B", "C", "D", "E", "F", "G" })
+        try
         {
-            for (var number = 1; number <= 12; number++)
+            var events = await ApiClient.GetEventsAsync(CancellationToken.None);
+            var activeEvent = events.OrderBy(e => e.StartsAt).FirstOrDefault();
+            if (activeEvent is null)
             {
-                seats.Add(new SeatViewModel
-                {
-                    Section = "Orchestra",
-                    Row = row,
-                    Number = number.ToString(),
-                    State = SeatVisualState.Available
-                });
+                _activeEventId = Guid.Empty;
+                _seats = [];
+                _statusMessage = "No events found. Create an event and seats first.";
+                _isErrorMessage = true;
+                return;
             }
+
+            _activeEventId = activeEvent.Id;
+
+            var seats = await ApiClient.GetSeatsAsync(_activeEventId, CancellationToken.None);
+            _seats = seats
+                .Select(MapApiSeatToViewModel)
+                .ToList();
         }
-
-        // Seed a few occupied states so users can validate disabled styling/behavior.
-        seats.First(s => s.Row == "A" && s.Number == "1").State = SeatVisualState.Held;
-        seats.First(s => s.Row == "A" && s.Number == "2").State = SeatVisualState.Booked;
-        seats.First(s => s.Row == "B" && s.Number == "3").State = SeatVisualState.Held;
-
-        return seats;
+        catch (HttpRequestException)
+        {
+            _activeEventId = Guid.Empty;
+            _seats = [];
+            _isErrorMessage = true;
+            // Keep the page interactive and show a clear recovery action instead of crashing the circuit.
+            _statusMessage = "Cannot reach SeatSync API. Start SeatSync.Api (or docker compose) and refresh.";
+        }
+        catch (TaskCanceledException)
+        {
+            _activeEventId = Guid.Empty;
+            _seats = [];
+            _isErrorMessage = true;
+            _statusMessage = "SeatSync API request timed out. Please retry.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private static Task OnSeatsChanged(IReadOnlyList<SeatViewModel> _)
     {
         return Task.CompletedTask;
     }
+
+    private async Task ReserveSelectedSeatsAsync()
+    {
+        if (_activeEventId == Guid.Empty)
+        {
+            return;
+        }
+
+        var selectedSeatIds = _seats
+            .Where(s => s.State == SeatVisualState.Selected && s.BackendSeatId.HasValue)
+            .Select(s => s.BackendSeatId!.Value)
+            .ToList();
+
+        if (selectedSeatIds.Count == 0)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+        _statusMessage = string.Empty;
+
+        try
+        {
+            var success = await ApiClient.CreateHoldAsync(
+                _activeEventId,
+                _userId,
+                selectedSeatIds,
+                CancellationToken.None);
+
+            if (!success)
+            {
+                _statusMessage = "Reservation conflict: one or more seats are no longer available.";
+                _isErrorMessage = true;
+                await LoadSeatMapAsync();
+                return;
+            }
+
+            _statusMessage = "Seats reserved successfully.";
+            _isErrorMessage = false;
+            await LoadSeatMapAsync();
+        }
+        catch (HttpRequestException)
+        {
+            _isErrorMessage = true;
+            _statusMessage = "Reservation failed because SeatSync API is unreachable.";
+        }
+        catch (TaskCanceledException)
+        {
+            _isErrorMessage = true;
+            _statusMessage = "Reservation request timed out. Please try again.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private static SeatViewModel MapApiSeatToViewModel(SeatApiModel seat) => new()
+    {
+        BackendSeatId = seat.Id,
+        Section = seat.Section,
+        Row = seat.Row,
+        Number = seat.Number,
+        State = seat.State switch
+        {
+            0 => SeatVisualState.Available,
+            1 => SeatVisualState.Held,
+            2 => SeatVisualState.Booked,
+            _ => SeatVisualState.Available
+        }
+    };
+
+    private string GetStatusCssClass() =>
+        _isErrorMessage
+            ? "status-message status-message--error"
+            : "status-message status-message--success";
 }

@@ -2,6 +2,8 @@ namespace SeatSync.Web.Models;
 
 public sealed class SeatViewModel
 {
+    public Guid? BackendSeatId { get; init; }
+
     public required string Section { get; init; }
 
     public required string Row { get; init; }

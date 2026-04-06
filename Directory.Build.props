@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <!-- Ignore polluted build artifact trees (including recursive bin/bin/... cases). -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/bin/**;**/obj/**</DefaultItemExcludes>
+
+    <!-- No .resx files are used in this solution; disabling implicit discovery avoids literal glob build errors. -->
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(UseTmpBuildPaths)' == 'true'">
+    <!-- Optional CI/sandbox mode to bypass locked workspace bin/obj directories. -->
+    <BaseIntermediateOutputPath>/tmp/seatsync_obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <BaseOutputPath>/tmp/seatsync_bin/$(MSBuildProjectName)/</BaseOutputPath>
+  </PropertyGroup>
+</Project>

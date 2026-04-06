@@ -43,4 +43,16 @@ public sealed class EventsController : ControllerBase
         if (ev is null) return NotFound();
         return Ok(ev);
     }
-}
+
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<EventResponse>>> GetAll(CancellationToken ct)
+    {
+        var events = await _db.Events
+            .AsNoTracking()
+            .OrderBy(x => x.StartsAt)
+            .Select(x => new EventResponse(x.Id, x.Name, x.StartsAt))
+            .ToListAsync(ct);
+
+        return Ok(events);
+    }
+} 

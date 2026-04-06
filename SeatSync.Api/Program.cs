@@ -1,6 +1,9 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using SeatSync.Domain.Entities;
+using SeatSync.Domain.Enums;
 using SeatSync.Infrastructure.Data;
+using SeatSync.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +12,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IReservationStoredProcedureService, ReservationStoredProcedureService>();
 
 if (!builder.Environment.IsEnvironment("Testing"))
 {
@@ -45,6 +49,7 @@ if (!app.Environment.IsEnvironment("Testing"))
         try
         {
             dbContext.Database.Migrate();
+            await EnsureSeedDataAsync(dbContext);
             break;
         }
         catch (Exception ex) when (attempt < maxAttempts)
@@ -72,3 +77,39 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.MapControllers();
 app.Run();
+
+static async Task EnsureSeedDataAsync(SeatSyncDbContext dbContext)
+{
+    if (await dbContext.Events.AnyAsync())
+    {
+        return;
+    }
+
+    var seededEvent = new Event("SeatSync Demo Event", DateTimeOffset.UtcNow.AddDays(10));
+    dbContext.Events.Add(seededEvent);
+
+    var rows = new[] { "A", "B", "C", "D", "E", "F", "G" };
+    for (var rowIndex = 0; rowIndex < rows.Length; rowIndex++)
+    {
+        var row = rows[rowIndex];
+        var rowPosition = rowIndex + 1;
+        for (var seatNumber = 1; seatNumber <= 12; seatNumber++)
+        {
+            var seat = new Seat(
+                seededEvent.Id,
+                "Orchestra",
+                row,
+                seatNumber.ToString(),
+                seatNumber,
+                rowPosition);
+
+            dbContext.Seats.Add(seat);
+            dbContext.SeatStatuses.Add(new SeatStatus(
+                seededEvent.Id,
+                seat.Id,
+                SeatState.Available));
+        }
+    }
+
+    await dbContext.SaveChangesAsync();
+}

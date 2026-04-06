@@ -1,10 +1,23 @@
 using SeatSync.Web.Components;
+using SeatSync.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.Configure<SeatSyncApiOptions>(
+    builder.Configuration.GetSection("SeatSyncApi"));
+
+builder.Services.AddHttpClient<ISeatSyncApiClient, SeatSyncApiClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider
+        .GetRequiredService<Microsoft.Extensions.Options.IOptions<SeatSyncApiOptions>>()
+        .Value;
+
+    client.BaseAddress = new Uri(options.BaseUrl);
+});
 
 var app = builder.Build();
 

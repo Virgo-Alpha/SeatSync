@@ -1,8 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using SeatSync.Infrastructure.Data;
-using SeatSync.Domain.Entities;
-using SeatSync.Domain.Enums;
+using SeatSync.Infrastructure.Services;
 
 namespace SeatSync.Api.Controllers;
 
@@ -10,11 +7,11 @@ namespace SeatSync.Api.Controllers;
 [Route("api/holds")]
 public sealed class HoldsController : ControllerBase
 {
-    private readonly SeatSyncDbContext _db;
+    private readonly IReservationStoredProcedureService _reservationService;
 
-    public HoldsController(SeatSyncDbContext db)
+    public HoldsController(IReservationStoredProcedureService reservationService)
     {
-        _db = db;
+        _reservationService = reservationService;
     }
 
     [HttpPost]
@@ -22,40 +19,25 @@ public sealed class HoldsController : ControllerBase
         [FromBody] CreateHoldRequest request,
         CancellationToken ct)
     {
-        using var tx = await _db.Database.BeginTransactionAsync(ct);
-
-        var seatStatuses = await _db.SeatStatuses
-            .Where(s => request.SeatIds.Contains(s.SeatId)
-                        && s.EventId == request.EventId)
-            .ToListAsync(ct);
-
-        if (seatStatuses.Count != request.SeatIds.Count)
-            return BadRequest("Some seats not found.");
-
-        if (seatStatuses.Any(s => s.State != SeatState.Available))
-            return BadRequest("One or more seats unavailable.");
-
-        var hold = new Hold(
+        var holdResult = await _reservationService.CreateSeatHoldAsync(
             request.EventId,
             request.UserId,
             request.SeatIds,
-            TimeSpan.FromMinutes(10));
+            TimeSpan.FromMinutes(10),
+            ct);
 
-        _db.Holds.Add(hold);
-
-        foreach (var seat in seatStatuses)
+        return holdResult.ResultCode switch
         {
-            seat.MarkHeld(hold.Id);
-        }
-
-        await _db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-
-        return Ok(new
-        {
-            hold.Id,
-            hold.ExpiresAt
-        });
+            ReservationResultCode.Success => Ok(new
+            {
+                holdResult.HoldId,
+                holdResult.ExpiresAt
+            }),
+            ReservationResultCode.NotFound => NotFound(holdResult.Message),
+            ReservationResultCode.Conflict => Conflict(holdResult.Message),
+            ReservationResultCode.Forbidden => Forbid(),
+            _ => BadRequest(holdResult.Message)
+        };
     }
 }
 

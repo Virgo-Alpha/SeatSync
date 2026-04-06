@@ -22,7 +22,9 @@ public sealed class SeatStatus
     //     With RowVersion, the database will block Person B's save because the version changed when Person A saved their change.
     
     /// </summary>
-    public byte[] RowVersion { get; private set; } = default!;
+    // The current schema stores RowVersion as a required varbinary column.
+    // Initialize with an empty payload so inserts never send NULL during startup seeding.
+    public byte[] RowVersion { get; private set; } = [];
 
     public bool IsAvailable() => State == SeatState.Available;
 

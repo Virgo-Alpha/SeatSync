@@ -66,6 +66,34 @@
     justify-content: center;
 }
 
+.reserve-button {
+    justify-self: start;
+    border: 1px solid #0f5c8e;
+    background: #0f5c8e;
+    color: #fff;
+    border-radius: 8px;
+    padding: 0.45rem 0.85rem;
+    font-weight: 700;
+}
+
+.reserve-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.status-message {
+    font-weight: 600;
+    margin: 0;
+}
+
+.status-message--success {
+    color: #166534;
+}
+
+.status-message--error {
+    color: #b91c1c;
+}
+
 @media (max-width: 760px) {
     .venue-shell {
         padding: 0.85rem;

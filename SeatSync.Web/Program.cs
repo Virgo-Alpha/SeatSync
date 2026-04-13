@@ -10,6 +10,8 @@ builder.Services.AddRazorComponents()
 builder.Services.Configure<SeatSyncApiOptions>(
     builder.Configuration.GetSection("SeatSyncApi"));
 
+builder.Services.AddScoped<IUserSessionService, UserSessionService>();
+
 builder.Services.AddHttpClient<ISeatSyncApiClient, SeatSyncApiClient>((serviceProvider, client) =>
 {
     var options = serviceProvider
@@ -29,8 +31,10 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.UseHttpsRedirection();
-
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseAntiforgery();
 
 app.MapStaticAssets();

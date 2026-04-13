@@ -7,6 +7,11 @@
     <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- Default to /tmp build output to avoid root-owned workspace bin/obj artifacts created by containerized builds. -->
+    <UseTmpBuildPaths Condition="'$(UseTmpBuildPaths)' == ''">true</UseTmpBuildPaths>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(UseTmpBuildPaths)' == 'true'">
     <!-- Optional CI/sandbox mode to bypass locked workspace bin/obj directories. -->
     <BaseIntermediateOutputPath>/tmp/seatsync_obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>

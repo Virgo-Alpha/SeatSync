@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SeatSync.Infrastructure.Data;
@@ -19,6 +20,7 @@ public sealed class SeatsController : ControllerBase
 
     // GET /api/events/{eventId}/seats
     [HttpGet]
+    [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<object>>> GetSeats(
         Guid eventId,
         CancellationToken ct)
@@ -46,6 +48,7 @@ public sealed class SeatsController : ControllerBase
 
     // POST /api/events/{eventId}/seats
     [HttpPost]
+    [Authorize(Roles = "Admin,Organizer")]
     public async Task<IActionResult> BulkCreate(
         Guid eventId,
         [FromBody] List<SeatCreateRequest> request,

@@ -1,59 +1,76 @@
-@page "/"
 @page "/seating"
 @rendermode InteractiveServer
-@using SeatSync.Web.Models
-@using SeatSync.Web.Models.Api
-@using SeatSync.Web.Services
+@implements IDisposable
 @inject ISeatSyncApiClient ApiClient
+@inject IUserSessionService Session
+@inject NavigationManager Nav
+@inject IJSRuntime Js
 
 <PageTitle>Seating Chart</PageTitle>
 
 <div class="venue-page">
     <h1>Seating Chart</h1>
-    <p>Click an available seat to select it. Click again to release it.</p>
+    <p>Click available seats, then complete booking with mock payment and receipt generation.</p>
 
-    <div class="venue-shell">
-        <header class="stage">STAGE</header>
+    @if (!Session.IsAuthenticated)
+    {
+        <p class="status-message status-message--error">Please login to book seats.</p>
+        <button class="reserve-button" type="button" @onclick="@(() => Nav.NavigateTo("/login"))">Go to Login</button>
+    }
+    else
+    {
+        <div class="venue-shell">
+            <header class="stage">STAGE</header>
 
-        <div class="venue-markers venue-markers--top">
-            <span class="marker marker--fire">FIRE ESCAPE LEFT</span>
-            <span class="marker marker--fire">FIRE ESCAPE RIGHT</span>
+            <div class="venue-markers venue-markers--top">
+                <span class="marker marker--fire">FIRE ESCAPE LEFT</span>
+                <span class="marker marker--fire">FIRE ESCAPE RIGHT</span>
+            </div>
+
+            <div class="seating-lane">
+                @if (_isLoading)
+                {
+                    <p class="status-message">Loading seats...</p>
+                }
+                else if (_seats.Count == 0 && !_isErrorMessage && string.IsNullOrWhiteSpace(_statusMessage))
+                {
+                    <p class="status-message status-message--error">No seats were returned by the backend API.</p>
+                }
+                else
+                {
+                    <SeatingChart Seats="_seats" SeatsChanged="OnSeatsChanged" />
+                }
+            </div>
+
+            <div class="venue-markers venue-markers--bottom">
+                <span class="marker marker--entry">ENTRY A</span>
+                <span class="marker marker--entry">ENTRY B</span>
+                <span class="marker marker--exit">EXIT A</span>
+                <span class="marker marker--exit">EXIT B</span>
+            </div>
         </div>
 
-        @* Keep the chart in a centered lane so it reads like a real auditorium. *@
-        <div class="seating-lane">
-            @if (_isLoading)
-            {
-                <p class="status-message">Loading seats...</p>
-            }
-            else if (_seats.Count == 0)
-            {
-                <p class="status-message status-message--error">No seats were returned by the backend API.</p>
-            }
-            else
-            {
-                <SeatingChart Seats="_seats" SeatsChanged="OnSeatsChanged" />
-            }
+        <p class="selection-summary">
+            Selected Seats: @_seats.Count(s => s.State == SeatVisualState.Selected)
+        </p>
+
+        <div class="mb-3">
+            <label>Mock Payment Outcome:</label>
+            <div>
+                <input type="radio" id="pay-success" name="mock-payment" checked="@_mockPaymentShouldSucceed" @onchange="@(() => _mockPaymentShouldSucceed = true)" />
+                <label for="pay-success">Success</label>
+                <input class="ms-3" type="radio" id="pay-fail" name="mock-payment" checked="@(!_mockPaymentShouldSucceed)" @onchange="@(() => _mockPaymentShouldSucceed = false)" />
+                <label for="pay-fail">Fail</label>
+            </div>
         </div>
 
-        <div class="venue-markers venue-markers--bottom">
-            <span class="marker marker--entry">ENTRY A</span>
-            <span class="marker marker--entry">ENTRY B</span>
-            <span class="marker marker--exit">EXIT A</span>
-            <span class="marker marker--exit">EXIT B</span>
-        </div>
-    </div>
-
-    <p class="selection-summary">
-        Selected Seats: @_seats.Count(s => s.State == SeatVisualState.Selected)
-    </p>
-
-    <button class="reserve-button"
-            type="button"
-            disabled="@(_isLoading || _isSubmitting || _activeEventId == Guid.Empty || !_seats.Any(s => s.State == SeatVisualState.Selected))"
-            @onclick="ReserveSelectedSeatsAsync">
-        @(_isSubmitting ? "Reserving..." : "Reserve Selected Seats")
-    </button>
+        <button class="reserve-button"
+                type="button"
+                disabled="@(_isLoading || _isSubmitting || _activeEventId == Guid.Empty || !_seats.Any(s => s.State == SeatVisualState.Selected))"
+                @onclick="BookSelectedSeatsAsync">
+            @(_isSubmitting ? "Processing..." : "Book + Pay + Receipt")
+        </button>
+    }
 
     @if (!string.IsNullOrWhiteSpace(_statusMessage))
     {
@@ -62,23 +79,38 @@
 </div>
 
 @code {
-    private readonly Guid _userId = Guid.Parse("ec880f1f-8a06-419f-97d0-68c3ef548b15");
     private List<SeatViewModel> _seats = [];
     private Guid _activeEventId;
     private bool _isLoading = true;
     private bool _isSubmitting;
+    private bool _mockPaymentShouldSucceed = true;
     private string _statusMessage = string.Empty;
     private bool _isErrorMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadSeatMapAsync();
+        Session.Changed += HandleSessionChanged;
+        await LoadSeatMapAsync(preserveStatusMessage: false);
     }
 
-    private async Task LoadSeatMapAsync()
+    public void Dispose()
+    {
+        Session.Changed -= HandleSessionChanged;
+    }
+
+    private void HandleSessionChanged()
+    {
+        _ = LoadSeatMapAsync(preserveStatusMessage: true);
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadSeatMapAsync(bool preserveStatusMessage)
     {
         _isLoading = true;
-        _statusMessage = string.Empty;
+        if (!preserveStatusMessage)
+        {
+            _statusMessage = string.Empty;
+        }
 
         try
         {
@@ -105,7 +137,6 @@
             _activeEventId = Guid.Empty;
             _seats = [];
             _isErrorMessage = true;
-            // Keep the page interactive and show a clear recovery action instead of crashing the circuit.
             _statusMessage = "Cannot reach SeatSync API. Start SeatSync.Api (or docker compose) and refresh.";
         }
         catch (TaskCanceledException)
@@ -121,14 +152,15 @@
         }
     }
 
-    private static Task OnSeatsChanged(IReadOnlyList<SeatViewModel> _)
+    private Task OnSeatsChanged(IReadOnlyList<SeatViewModel> _)
     {
+        StateHasChanged();
         return Task.CompletedTask;
     }
 
-    private async Task ReserveSelectedSeatsAsync()
+    private async Task BookSelectedSeatsAsync()
     {
-        if (_activeEventId == Guid.Empty)
+        if (!Session.IsAuthenticated || _activeEventId == Guid.Empty)
         {
             return;
         }
@@ -148,23 +180,65 @@
 
         try
         {
-            var success = await ApiClient.CreateHoldAsync(
+            var holdResult = await ApiClient.CreateHoldAsync(
                 _activeEventId,
-                _userId,
                 selectedSeatIds,
                 CancellationToken.None);
 
-            if (!success)
+            if (!holdResult.IsSuccess)
             {
-                _statusMessage = "Reservation conflict: one or more seats are no longer available.";
+                _statusMessage = holdResult.IsConflict
+                    ? "Reservation conflict: one or more seats are no longer available."
+                    : holdResult.Message ?? "Failed to create a hold. Please retry.";
                 _isErrorMessage = true;
-                await LoadSeatMapAsync();
+                await LoadSeatMapAsync(preserveStatusMessage: true);
                 return;
             }
 
-            _statusMessage = "Seats reserved successfully.";
+            if (!holdResult.HoldId.HasValue)
+            {
+                _statusMessage = "Hold created but HoldId was missing from API response.";
+                _isErrorMessage = true;
+                await LoadSeatMapAsync(preserveStatusMessage: true);
+                return;
+            }
+
+            var finalizeResult = await ApiClient.FinalizeOrderAsync(
+                holdResult.HoldId.Value,
+                idempotencyKey: $"{Session.CurrentUser!.UserId:N}-{Guid.NewGuid():N}",
+                CancellationToken.None);
+
+            if (!finalizeResult.IsSuccess || !finalizeResult.OrderId.HasValue)
+            {
+                _statusMessage = finalizeResult.IsConflict
+                    ? "Booking conflict: the hold expired or seats changed before payment completion."
+                    : finalizeResult.Message ?? "Booking failed during order finalization.";
+                _isErrorMessage = true;
+                await LoadSeatMapAsync(preserveStatusMessage: true);
+                return;
+            }
+
+            var orderId = finalizeResult.OrderId.Value;
+            var paymentResult = await ApiClient.MockPaymentAsync(orderId, _mockPaymentShouldSucceed, CancellationToken.None);
+            if (!paymentResult.IsSuccess || !string.Equals(paymentResult.State, "Captured", StringComparison.OrdinalIgnoreCase))
+            {
+                _statusMessage = paymentResult.Message ?? "Booking completed but payment failed.";
+                _isErrorMessage = true;
+                await LoadSeatMapAsync(preserveStatusMessage: true);
+                return;
+            }
+
+            var receiptText = await ApiClient.DownloadReceiptAsync(orderId, CancellationToken.None);
+            if (!string.IsNullOrWhiteSpace(receiptText))
+            {
+                await Js.InvokeVoidAsync("seatSyncDownloadText", $"SeatSync-Receipt-{orderId}.txt", receiptText);
+            }
+
+            await ApiClient.EmailReceiptAsync(orderId, Session.CurrentUser?.Email, CancellationToken.None);
+
+            _statusMessage = $"Booking completed. Order {orderId} captured. Receipt downloaded and email queued.";
             _isErrorMessage = false;
-            await LoadSeatMapAsync();
+            await LoadSeatMapAsync(preserveStatusMessage: true);
         }
         catch (HttpRequestException)
         {

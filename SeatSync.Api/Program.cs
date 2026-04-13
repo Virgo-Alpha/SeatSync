@@ -1,5 +1,10 @@
 using System.Reflection;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.IdentityModel.Tokens;
+using SeatSync.Api.Auth;
 using SeatSync.Domain.Entities;
 using SeatSync.Domain.Enums;
 using SeatSync.Infrastructure.Data;
@@ -9,21 +14,38 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IReservationStoredProcedureService, ReservationStoredProcedureService>();
+builder.Services.AddScoped<ITokenService, JwtTokenService>();
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 
-if (!builder.Environment.IsEnvironment("Testing"))
-{
-    builder.Services.AddDbContext<SeatSyncDbContext>(opt =>
-        opt.UseSqlServer(builder.Configuration.GetConnectionString("SeatSyncDb")));
-}
-else
-{
-    builder.Services.AddDbContext<SeatSyncDbContext>(opt =>
-        opt.UseSqlServer(builder.Configuration.GetConnectionString("SeatSyncDb")));
-}
+var jwtOptions = builder.Configuration
+    .GetSection(JwtOptions.SectionName)
+    .Get<JwtOptions>() ?? new JwtOptions();
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1),
+            ValidIssuer = jwtOptions.Issuer,
+            ValidAudience = jwtOptions.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey))
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+builder.Services.AddDbContext<SeatSyncDbContext>(opt =>
+    opt.UseSqlServer(builder.Configuration.GetConnectionString("SeatSyncDb"))
+        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
 builder.Services.AddSwaggerGen(c =>
 {
@@ -36,8 +58,6 @@ var app = builder.Build();
 
 if (!app.Environment.IsEnvironment("Testing"))
 {
-    // Compose startup can race SQL initialization; retry migrations so "docker compose up -d"
-    // can provision the schema without manual EF commands.
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<SeatSyncDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
@@ -71,43 +91,71 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// TODO: The below causes "Missing XML comment for publicly visible type or member: {Model / Controller}"
-
-
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 app.Run();
 
 static async Task EnsureSeedDataAsync(SeatSyncDbContext dbContext)
 {
-    if (await dbContext.Events.AnyAsync())
+    if (!await dbContext.AppUsers.AnyAsync())
     {
-        return;
+        dbContext.AppUsers.AddRange(
+            new AppUser(
+                id: Guid.Parse("3ce0af30-44f7-4a5e-9b25-3ca672ebd5bb"),
+                email: "admin@seatsync.demo",
+                displayName: "SeatSync Admin",
+                password: "demo123",
+                role: UserRole.Admin),
+            new AppUser(
+                id: Guid.Parse("f8764ebb-7e22-40af-abf6-145bcf58f3a3"),
+                email: "organizer@seatsync.demo",
+                displayName: "Event Organizer",
+                password: "demo123",
+                role: UserRole.Organizer),
+            new AppUser(
+                id: Guid.Parse("ec880f1f-8a06-419f-97d0-68c3ef548b15"),
+                email: "attendee@seatsync.demo",
+                displayName: "Demo Attendee",
+                password: "demo123",
+                role: UserRole.Attendee));
     }
 
-    var seededEvent = new Event("SeatSync Demo Event", DateTimeOffset.UtcNow.AddDays(10));
-    dbContext.Events.Add(seededEvent);
-
-    var rows = new[] { "A", "B", "C", "D", "E", "F", "G" };
-    for (var rowIndex = 0; rowIndex < rows.Length; rowIndex++)
+    if (!await dbContext.Events.AnyAsync())
     {
-        var row = rows[rowIndex];
-        var rowPosition = rowIndex + 1;
-        for (var seatNumber = 1; seatNumber <= 12; seatNumber++)
-        {
-            var seat = new Seat(
-                seededEvent.Id,
-                "Orchestra",
-                row,
-                seatNumber.ToString(),
-                seatNumber,
-                rowPosition);
+        var seededEvent = new Event(
+            "SeatSync Demo Event",
+            DateTimeOffset.UtcNow.AddDays(10),
+            "Doors open 18:30. Main act starts 19:00.",
+            Guid.Parse("f8764ebb-7e22-40af-abf6-145bcf58f3a3"));
 
-            dbContext.Seats.Add(seat);
-            dbContext.SeatStatuses.Add(new SeatStatus(
-                seededEvent.Id,
-                seat.Id,
-                SeatState.Available));
+        dbContext.Events.Add(seededEvent);
+
+        var rows = new[] { "A", "B", "C", "D", "E", "F", "G" };
+        for (var rowIndex = 0; rowIndex < rows.Length; rowIndex++)
+        {
+            var row = rows[rowIndex];
+            var rowPosition = rowIndex + 1;
+            for (var seatNumber = 1; seatNumber <= 12; seatNumber++)
+            {
+                var seat = new Seat(
+                    seededEvent.Id,
+                    "Orchestra",
+                    row,
+                    seatNumber.ToString(),
+                    seatNumber,
+                    rowPosition);
+
+                dbContext.Seats.Add(seat);
+                dbContext.SeatStatuses.Add(new SeatStatus(
+                    seededEvent.Id,
+                    seat.Id,
+                    SeatState.Available));
+            }
         }
     }
 

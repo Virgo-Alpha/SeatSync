@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SeatSync.Infrastructure.Data;
@@ -6,6 +7,7 @@ namespace SeatSync.Api.Controllers;
 
 [ApiController]
 [Route("api/tickets")]
+[Authorize(Roles = "Admin,Organizer")]
 public sealed class TicketsController : ControllerBase
 {
     private readonly SeatSyncDbContext _db;

@@ -1,0 +1,29 @@
+@page "/logout"
+@rendermode InteractiveServer
+@inject IUserSessionService Session
+@inject NavigationManager Nav
+
+<PageTitle>Logout</PageTitle>
+
+<h1>Logout</h1>
+
+@if (Session.IsAuthenticated && Session.CurrentUser is not null)
+{
+    <p>You are currently signed in as <strong>@Session.CurrentUser.DisplayName</strong>.</p>
+    <p>Do you want to log out?</p>
+    <button class="btn btn-danger" @onclick="ConfirmLogout">Yes, log out</button>
+    <button class="btn btn-secondary ms-2" @onclick="@(() => Nav.NavigateTo("/"))">Cancel</button>
+}
+else
+{
+    <p>You are already logged out.</p>
+    <a href="/login">Go to login</a>
+}
+
+@code {
+    private void ConfirmLogout()
+    {
+        Session.Clear();
+        Nav.NavigateTo("/logout/confirmed");
+    }
+}

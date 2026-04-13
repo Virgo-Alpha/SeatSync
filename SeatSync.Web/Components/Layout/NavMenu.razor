@@ -1,4 +1,7 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+@implements IDisposable
+@inject IUserSessionService Session
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">SeatSync</a>
     </div>
@@ -9,14 +12,55 @@
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="home">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Seating Chart
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Landing
             </NavLink>
         </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="seating">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Seat Booking
+            </NavLink>
+        </div>
+
+        @if (Session.IsInRole("Admin") || Session.IsInRole("Organizer"))
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="events/manage">
+                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Manage Events
+                </NavLink>
+            </div>
+        }
+
+        @if (!Session.IsAuthenticated)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="login">
+                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Login
+                </NavLink>
+            </div>
+        }
+        else
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="logout">
+                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Logout
+                </NavLink>
+            </div>
+        }
     </nav>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Session.Changed += HandleSessionChanged;
+    }
+
+    public void Dispose()
+    {
+        Session.Changed -= HandleSessionChanged;
+    }
+
+    private void HandleSessionChanged() => InvokeAsync(StateHasChanged);
+}

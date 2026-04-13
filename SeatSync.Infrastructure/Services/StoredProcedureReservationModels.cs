@@ -19,3 +19,6 @@ public sealed record FinalizeOrderStoredProcedureResult(
     ReservationResultCode ResultCode,
     Guid? OrderId,
     string Message);
+
+public sealed record ReleaseExpiredHoldsStoredProcedureResult(
+    int ReleasedCount);

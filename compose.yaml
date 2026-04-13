@@ -28,6 +28,7 @@
     command: dotnet run --project SeatSync.Api --no-launch-profile
     volumes:
       - ./:/src
+      - seatsync_api_keys:/root/.aspnet/DataProtection-Keys
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
@@ -46,6 +47,7 @@
     command: dotnet run --project SeatSync.Web --no-launch-profile
     volumes:
       - ./:/src
+      - seatsync_web_keys:/root/.aspnet/DataProtection-Keys
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
@@ -59,3 +61,5 @@
 
 volumes:
   seatsync_sql_data:
+  seatsync_api_keys:
+  seatsync_web_keys:

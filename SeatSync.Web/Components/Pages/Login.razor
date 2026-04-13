@@ -1,0 +1,77 @@
+@page "/login"
+@rendermode InteractiveServer
+@inject ISeatSyncApiClient ApiClient
+@inject IUserSessionService Session
+@inject NavigationManager Nav
+
+<PageTitle>Login</PageTitle>
+
+<h1>Login</h1>
+
+<EditForm Model="_model" OnValidSubmit="HandleLoginAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label>Email</label>
+        <InputText class="form-control" @bind-Value="_model.Email" />
+    </div>
+
+    <div class="mb-3">
+        <label>Password</label>
+        <InputText class="form-control" type="password" @bind-Value="_model.Password" />
+    </div>
+
+    <button class="btn btn-primary" type="submit" disabled="@_isLoading">@(_isLoading ? "Signing in..." : "Sign in")</button>
+</EditForm>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <p class="text-danger mt-3">@_error</p>
+}
+
+@code {
+    private readonly LoginFormModel _model = new()
+    {
+        Email = "attendee@seatsync.demo",
+        Password = "demo123"
+    };
+    private bool _isLoading;
+    private string _error = string.Empty;
+
+    private async Task HandleLoginAsync()
+    {
+        _isLoading = true;
+        _error = string.Empty;
+
+        try
+        {
+            var result = await ApiClient.LoginAsync(_model.Email, _model.Password, CancellationToken.None);
+            if (result is null)
+            {
+                _error = "Invalid credentials.";
+                return;
+            }
+
+            Session.SetUser(new AuthenticatedUserModel(
+                result.UserId,
+                result.DisplayName,
+                result.Email,
+                result.Role,
+                result.AccessToken,
+                result.ExpiresAtUtc));
+
+            Nav.NavigateTo("/seating");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private sealed class LoginFormModel
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+}

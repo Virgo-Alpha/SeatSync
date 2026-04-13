@@ -1,9 +1,13 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using SeatSync.Infrastructure.Data;
 
 #nullable disable
 
 namespace SeatSync.Infrastructure.Migrations;
 
+[DbContext(typeof(SeatSyncDbContext))]
+[Migration("20260406114000_AddReservationStoredProcedures")]
 public partial class AddReservationStoredProcedures : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -16,6 +20,21 @@ public partial class AddReservationStoredProcedures : Migration
                 (
                     Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY
                 );
+            END
+            """);
+
+        migrationBuilder.Sql(
+            """
+            IF EXISTS (
+                SELECT 1
+                FROM sys.columns
+                WHERE object_id = OBJECT_ID(N'dbo.Orders')
+                  AND name = N'IdempotencyKey'
+                  AND max_length = -1
+            )
+            BEGIN
+                ALTER TABLE dbo.Orders
+                ALTER COLUMN IdempotencyKey NVARCHAR(200) NOT NULL;
             END
             """);
 
@@ -34,6 +53,24 @@ public partial class AddReservationStoredProcedures : Migration
             BEGIN
                 CREATE INDEX IX_Holds_State_ExpiresAt
                 ON dbo.Holds (State, ExpiresAt);
+            END
+            """);
+
+        migrationBuilder.Sql(
+            """
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_SeatStatuses_HoldId_State' AND object_id = OBJECT_ID(N'dbo.SeatStatuses'))
+            BEGIN
+                CREATE INDEX IX_SeatStatuses_HoldId_State
+                ON dbo.SeatStatuses (HoldId, State);
+            END
+            """);
+
+        migrationBuilder.Sql(
+            """
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_SeatStatuses_OrderId_State' AND object_id = OBJECT_ID(N'dbo.SeatStatuses'))
+            BEGIN
+                CREATE INDEX IX_SeatStatuses_OrderId_State
+                ON dbo.SeatStatuses (OrderId, State);
             END
             """);
 
@@ -254,19 +291,23 @@ public partial class AddReservationStoredProcedures : Migration
 
                 IF @holdState <> 0 OR @expiresAt <= @now
                 BEGIN
-                    UPDATE dbo.Holds
-                    SET State = CASE WHEN @expiresAt <= @now THEN 1 ELSE State END
-                    WHERE Id = @HoldId;
+                    IF @expiresAt <= @now AND @holdState = 0
+                    BEGIN
+                        UPDATE dbo.Holds
+                        SET State = 1
+                        WHERE Id = @HoldId
+                          AND State = 0;
 
-                    UPDATE dbo.SeatStatuses
-                    SET State = 0,
-                        HoldId = NULL,
-                        OrderId = NULL,
-                        UpdatedAt = @now
-                    WHERE HoldId = @HoldId
-                      AND State = 1;
+                        UPDATE dbo.SeatStatuses
+                        SET State = 0,
+                            HoldId = NULL,
+                            OrderId = NULL,
+                            UpdatedAt = @now
+                        WHERE HoldId = @HoldId
+                          AND State = 1;
+                    END;
 
-                    ROLLBACK TRAN;
+                    COMMIT TRAN;
                     SET @ResultCode = 3;
                     SET @Message = N'Hold is no longer active.';
                     RETURN;
@@ -362,6 +403,8 @@ public partial class AddReservationStoredProcedures : Migration
         migrationBuilder.Sql("DROP PROCEDURE IF EXISTS dbo.sp_CreateSeatHold;");
         migrationBuilder.Sql("DROP PROCEDURE IF EXISTS dbo.sp_ReleaseExpiredHolds;");
         migrationBuilder.Sql("DROP INDEX IF EXISTS IX_Orders_UserId_IdempotencyKey ON dbo.Orders;");
+        migrationBuilder.Sql("DROP INDEX IF EXISTS IX_SeatStatuses_OrderId_State ON dbo.SeatStatuses;");
+        migrationBuilder.Sql("DROP INDEX IF EXISTS IX_SeatStatuses_HoldId_State ON dbo.SeatStatuses;");
         migrationBuilder.Sql("DROP INDEX IF EXISTS IX_Holds_State_ExpiresAt ON dbo.Holds;");
         migrationBuilder.Sql("DROP INDEX IF EXISTS IX_SeatStatuses_EventId_SeatId ON dbo.SeatStatuses;");
         migrationBuilder.Sql("DROP TYPE IF EXISTS dbo.GuidList;");

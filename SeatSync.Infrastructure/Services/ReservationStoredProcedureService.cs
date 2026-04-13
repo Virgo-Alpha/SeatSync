@@ -21,12 +21,21 @@ public sealed class ReservationStoredProcedureService : IReservationStoredProced
         TimeSpan holdDuration,
         CancellationToken ct)
     {
+        if (seatIds.Count == 0)
+        {
+            return new CreateHoldStoredProcedureResult(
+                ReservationResultCode.ValidationError,
+                null,
+                null,
+                "At least one seat is required.");
+        }
+
         var holdId = Guid.Empty;
         DateTimeOffset? expiresAt = null;
         var message = string.Empty;
         var resultCode = ReservationResultCode.ValidationError;
 
-        await using var connection = new SqlConnection(_db.Database.GetConnectionString());
+        await using var connection = new SqlConnection(GetRequiredConnectionString());
         await connection.OpenAsync(ct);
         await using var command = new SqlCommand("dbo.sp_CreateSeatHold", connection)
         {
@@ -35,11 +44,11 @@ public sealed class ReservationStoredProcedureService : IReservationStoredProced
 
         command.Parameters.AddWithValue("@EventId", eventId);
         command.Parameters.AddWithValue("@UserId", userId);
-        command.Parameters.AddWithValue("@HoldDurationMinutes", (int)Math.Max(1, holdDuration.TotalMinutes));
+        command.Parameters.AddWithValue("@HoldDurationMinutes", (int)Math.Max(1, Math.Ceiling(holdDuration.TotalMinutes)));
 
         var seatIdsTable = new DataTable();
         seatIdsTable.Columns.Add("Id", typeof(Guid));
-        foreach (var seatId in seatIds)
+        foreach (var seatId in seatIds.Distinct())
         {
             seatIdsTable.Rows.Add(seatId);
         }
@@ -109,7 +118,7 @@ public sealed class ReservationStoredProcedureService : IReservationStoredProced
         string idempotencyKey,
         CancellationToken ct)
     {
-        await using var connection = new SqlConnection(_db.Database.GetConnectionString());
+        await using var connection = new SqlConnection(GetRequiredConnectionString());
         await connection.OpenAsync(ct);
         await using var command = new SqlCommand("dbo.sp_FinalizeSeatOrder", connection)
         {
@@ -156,4 +165,29 @@ public sealed class ReservationStoredProcedureService : IReservationStoredProced
 
         return new FinalizeOrderStoredProcedureResult(resultCode, orderId, message);
     }
+
+    public async Task<ReleaseExpiredHoldsStoredProcedureResult> ReleaseExpiredHoldsAsync(CancellationToken ct)
+    {
+        await using var connection = new SqlConnection(GetRequiredConnectionString());
+        await connection.OpenAsync(ct);
+        await using var command = new SqlCommand("dbo.sp_ReleaseExpiredHolds", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+
+        var releasedCountParameter = new SqlParameter("@ReleasedCount", SqlDbType.Int)
+        {
+            Direction = ParameterDirection.Output
+        };
+        command.Parameters.Add(releasedCountParameter);
+
+        await command.ExecuteNonQueryAsync(ct);
+
+        var releasedCount = releasedCountParameter.Value is int parsed ? parsed : 0;
+        return new ReleaseExpiredHoldsStoredProcedureResult(releasedCount);
+    }
+
+    private string GetRequiredConnectionString() =>
+        _db.Database.GetConnectionString()
+        ?? throw new InvalidOperationException("SeatSyncDb connection string is not configured.");
 }

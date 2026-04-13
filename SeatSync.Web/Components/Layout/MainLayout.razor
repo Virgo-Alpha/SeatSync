@@ -1,4 +1,6 @@
-﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inherits LayoutComponentBase
+@inject IUserSessionService Session
 
 <div class="page">
     <div class="sidebar">
@@ -8,6 +10,14 @@
     <main>
         <div class="top-row px-4">
             <a href="https://github.com/Virgo-Alpha/SeatSync" target="_blank">Repository</a>
+            @if (Session.IsAuthenticated && Session.CurrentUser is not null)
+            {
+                <span class="ms-auto">Signed in as @Session.CurrentUser.DisplayName (@Session.CurrentUser.Role)</span>
+            }
+            else
+            {
+                <span class="ms-auto">Not signed in</span>
+            }
         </div>
 
         <article class="content px-4">
@@ -21,3 +31,17 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Session.Changed += HandleSessionChanged;
+    }
+
+    public void Dispose()
+    {
+        Session.Changed -= HandleSessionChanged;
+    }
+
+    private void HandleSessionChanged() => InvokeAsync(StateHasChanged);
+}

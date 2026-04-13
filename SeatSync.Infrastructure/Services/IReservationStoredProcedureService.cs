@@ -14,4 +14,6 @@ public interface IReservationStoredProcedureService
         Guid userId,
         string idempotencyKey,
         CancellationToken ct);
+
+    Task<ReleaseExpiredHoldsStoredProcedureResult> ReleaseExpiredHoldsAsync(CancellationToken ct);
 }

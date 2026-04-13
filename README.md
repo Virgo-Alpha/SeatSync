@@ -95,12 +95,63 @@ docker compose logs -f web
 dotnet test
 ```
 
+7. Run SQL Server stored-procedure integration tests (optional, requires local SQL Server from compose):
+
+```
+SEATSYNC_RUN_SQLSERVER_TESTS=true dotnet test
+```
+
 Notes:
 
 * API startup now applies EF Core migrations automatically (with retry) so compose bootstraps the database schema.
 * `api` and `web` run in .NET SDK containers via `dotnet run` (source is bind-mounted), so code changes are reflected without rebuilding images.
-* If you add a new migration, generate it as usual:
-  `dotnet ef migrations add {migration_name} -p SeatSync.Infrastructure -s SeatSync.Api`
+
+Demo authentication accounts (seeded automatically):
+
+* `admin@seatsync.demo` / `demo123` (`Admin`)
+* `organizer@seatsync.demo` / `demo123` (`Organizer`)
+* `attendee@seatsync.demo` / `demo123` (`Attendee`)
+
+RBAC summary:
+
+* `Admin`/`Organizer`: create events, generate seat inventory, redeem tickets.
+* Authenticated users: create holds, finalize orders, run mock payments, download/email receipts.
+
+### Migrations and DB Updates
+
+Create a migration (from repo root):
+
+```bash
+dotnet ef migrations add <MigrationName> -p SeatSync.Infrastructure -s SeatSync.Api
+```
+
+Apply migrations to the configured database:
+
+```bash
+dotnet ef database update -p SeatSync.Infrastructure -s SeatSync.Api
+```
+
+List applied/pending migrations:
+
+```bash
+dotnet ef migrations list -p SeatSync.Infrastructure -s SeatSync.Api
+```
+
+Compose workflow:
+
+* `docker compose up -d` usually applies migrations automatically on API startup.
+* If schema is stale, run manual update in the API container:
+
+```bash
+docker compose exec api dotnet ef database update -p SeatSync.Infrastructure -s SeatSync.Api
+```
+
+If you need a clean local reset (destructive for local DB data):
+
+```bash
+docker compose down -v
+docker compose up -d
+```
 
 ---
 
@@ -125,9 +176,47 @@ Seat states:
 * `Held`: disabled/non-interactive
 * `Booked`: disabled/non-interactive
 
-Current limitation:
+Backend integration:
 
-* Seat interactions are in-memory UI state only for now (no persistence or reservation API integration yet).
+* Seat map is fetched from `GET /api/events/{eventId}/seats`.
+* Booking submit runs a two-step backend flow: `POST /api/holds` then `POST /api/orders/finalize`.
+* Successful finalize creates an order, marks seats `Booked`, and issues tickets atomically.
+* Conflict responses (`409`) are rendered in the UI and the seat map is reloaded from backend truth.
+* Seat state is not persisted in the browser; refresh always reflects SQL Server state.
+
+Event seat inventory generation:
+
+* Create event with seat-copy in one call: `POST /api/events` with `copySeatsFromEventId`.
+* Or generate seat inventory idempotently later: `POST /api/events/{eventId}/seat-inventory/generate`.
+
+---
+
+### Stored Procedure Workflow
+
+Seat reservation state transitions are handled by SQL Server stored procedures:
+
+* `sp_CreateSeatHold`
+* `sp_ReleaseExpiredHolds`
+* `sp_FinalizeSeatOrder`
+
+Concurrency strategy:
+
+* Explicit transactions (`BEGIN TRAN` / `COMMIT` / rollback-on-error via `XACT_ABORT`)
+* `SERIALIZABLE` isolation for hold/finalize critical sections
+* `UPDLOCK` + `HOLDLOCK` on targeted seat/hold/order rows
+* Unique idempotency key index on `(UserId, IdempotencyKey)` for safe finalize retries
+
+Hot-path indexes:
+
+* `IX_SeatStatuses_EventId_SeatId` (unique)
+* `IX_SeatStatuses_HoldId_State`
+* `IX_SeatStatuses_OrderId_State`
+* `IX_Holds_State_ExpiresAt`
+* `IX_Orders_UserId_IdempotencyKey` (unique)
+
+Known limitations:
+
+* Hold expiration is currently triggered on reservation/finalization calls (and optional manual endpoint `POST /api/holds/release-expired`), not by a dedicated background worker.
 
 ---
 

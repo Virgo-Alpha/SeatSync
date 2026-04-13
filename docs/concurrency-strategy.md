@@ -25,11 +25,12 @@ Redis (future) may optimize performance, but correctness is always enforced at t
 
 ### 1. Transaction Isolation
 
-Seat reservation and finalization operations will use:
+Seat reservation and finalization operations use:
 
 - Explicit SQL transactions
-- `UPDLOCK` and `ROWLOCK`
-- Or SERIALIZABLE isolation (if necessary)
+- `SERIALIZABLE` isolation on hold/finalize critical sections
+- `UPDLOCK` + `HOLDLOCK` on seat/hold/order lookups
+- `XACT_ABORT ON` so server-side failures abort the transaction atomically
 
 Goal:
 Prevent lost updates and race conditions.
@@ -49,7 +50,7 @@ Each seat maintains:
 
 ### 3. Idempotency
 
-Order finalization will require:
+Order finalization requires:
 
 - Client-provided Idempotency Key
 - Unique constraint at database level
@@ -63,8 +64,8 @@ This prevents duplicate charges and duplicate ticket issuance.
 Hold expiration is enforced server-side via:
 
 - Timestamp comparison
-- Background cleanup job (future)
-- Validation during finalization
+- `sp_ReleaseExpiredHolds` during hold and finalize workflows
+- Optional explicit release endpoint (`POST /api/holds/release-expired`)
 
 Clients cannot extend holds without server approval.
 
@@ -77,6 +78,7 @@ Clients cannot extend holds without server approval.
 - API retries
 - Network timeouts
 - Process crashes during transaction
+- repeated finalize calls with the same idempotency key
 
 ---
 

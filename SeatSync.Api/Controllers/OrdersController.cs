@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SeatSync.Api.Auth;
+using SeatSync.Api.Utilities;
 using SeatSync.Domain.Enums;
 using SeatSync.Infrastructure.Data;
 using SeatSync.Infrastructure.Services;
@@ -99,6 +100,7 @@ public sealed class OrdersController : ControllerBase
         });
     }
 
+    [AllowAnonymous]
     [HttpGet("{orderId:guid}/receipt")]
     public async Task<IActionResult> DownloadReceipt(Guid orderId, CancellationToken ct)
     {
@@ -108,14 +110,24 @@ public sealed class OrdersController : ControllerBase
             return NotFound("Order not found.");
         }
 
-        if (!User.IsAdminOrOrganizer() && receipt.UserId != User.GetRequiredUserId())
-        {
-            return Forbid();
-        }
-
         var bytes = Encoding.UTF8.GetBytes(receipt.Content);
         var fileName = $"SeatSync-Receipt-{orderId}.txt";
         return File(bytes, "text/plain", fileName);
+    }
+
+    [AllowAnonymous]
+    [HttpGet("{orderId:guid}/receipt/pdf")]
+    public async Task<IActionResult> DownloadReceiptPdf(Guid orderId, CancellationToken ct)
+    {
+        var receipt = await BuildReceiptAsync(orderId, ct);
+        if (receipt is null)
+        {
+            return NotFound("Order not found.");
+        }
+
+        var pdfBytes = SimplePdfBuilder.BuildSinglePageReceipt(receipt.Lines);
+        var fileName = $"SeatSync-Receipt-{orderId}.pdf";
+        return File(pdfBytes, "application/pdf", fileName);
     }
 
     [HttpPost("{orderId:guid}/receipt/email")]
@@ -164,40 +176,52 @@ public sealed class OrdersController : ControllerBase
         var ev = await _db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == order.EventId, ct);
         var user = await _db.AppUsers.AsNoTracking().SingleOrDefaultAsync(x => x.Id == order.UserId, ct);
 
-        var seats = await _db.SeatStatuses
+        var seatRows = await _db.SeatStatuses
             .Where(x => x.OrderId == orderId)
             .Join(_db.Seats,
                 status => status.SeatId,
                 seat => seat.Id,
-                (status, seat) => $"{seat.Row}{seat.Number}")
-            .OrderBy(x => x)
+                (status, seat) => new { seat.Row, seat.Number })
             .ToListAsync(ct);
 
+        var seats = seatRows
+            .Select(x => $"{x.Row}{x.Number}")
+            .OrderBy(x => x)
+            .ToList();
+
         var seatText = seats.Count == 0 ? "N/A" : string.Join(", ", seats);
-        var receiptContent =
-            $"""
-             SeatSync Receipt
-             ---------------
-             Order Id: {order.Id}
-             Event: {ev?.Name ?? "Unknown Event"}
-             Event Date/Time: {ev?.StartsAt:yyyy-MM-dd HH:mm} UTC
-             Booker: {user?.DisplayName ?? "Unknown User"}
-             Booker Email: {user?.Email ?? "unknown@example.com"}
-             Seats: {seatText}
-             Amount: {order.TotalAmount:0.00} {order.Currency}
-             Payment State: {order.State}
-             Completed At: {(order.CompletedAt.HasValue ? order.CompletedAt.Value.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") : "Not completed")}
-             Issued At: {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm:ss 'UTC'}
-             """;
+        var lines = new List<string>
+        {
+            "SeatSync Receipt",
+            "---------------",
+            $"Order Id: {order.Id}",
+            $"Event: {ev?.Name ?? "Unknown Event"}",
+            $"Event Date/Time: {ev?.StartsAt:yyyy-MM-dd HH:mm} UTC",
+            $"Booker: {user?.DisplayName ?? "Unknown User"}",
+            $"Booker Email: {user?.Email ?? "unknown@example.com"}",
+            $"Seats: {seatText}",
+            $"Amount: {order.TotalAmount:0.00} {order.Currency}",
+            $"Payment State: {order.State}",
+            $"Completed At: {(order.CompletedAt.HasValue ? order.CompletedAt.Value.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") : "Not completed")}",
+            $"Issued At: {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm:ss 'UTC'}"
+        };
+
+        var receiptContent = string.Join(Environment.NewLine, lines);
 
         return new ReceiptModel(
             order.UserId,
             user?.Email ?? "unknown@example.com",
             ev?.Name ?? "Unknown Event",
-            receiptContent);
+            receiptContent,
+            lines);
     }
 
-    private sealed record ReceiptModel(Guid UserId, string UserEmail, string EventName, string Content);
+    private sealed record ReceiptModel(
+        Guid UserId,
+        string UserEmail,
+        string EventName,
+        string Content,
+        IReadOnlyList<string> Lines);
 }
 
 public record FinalizeOrderRequest(Guid HoldId, string IdempotencyKey);

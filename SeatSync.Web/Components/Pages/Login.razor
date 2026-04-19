@@ -6,38 +6,69 @@
 
 <PageTitle>Login</PageTitle>
 
-<h1>Login</h1>
+<div class="login-page">
+    <h1>Login</h1>
 
-<EditForm Model="_model" OnValidSubmit="HandleLoginAsync">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
-
-    <div class="mb-3">
-        <label>Email</label>
-        <InputText class="form-control" @bind-Value="_model.Email" />
+    <div class="login-toggle" role="group" aria-label="Login profile">
+        <button type="button"
+                class="login-toggle__button @(_selectedProfile == LoginProfile.Attendee ? "is-active" : string.Empty)"
+                @onclick="@(() => SetProfile(LoginProfile.Attendee))">
+            Attendee
+        </button>
+        <button type="button"
+                class="login-toggle__button @(_selectedProfile == LoginProfile.Admin ? "is-active" : string.Empty)"
+                @onclick="@(() => SetProfile(LoginProfile.Admin))">
+            Admin
+        </button>
     </div>
 
-    <div class="mb-3">
-        <label>Password</label>
-        <InputText class="form-control" type="password" @bind-Value="_model.Password" />
-    </div>
+    <EditForm Model="_model" OnValidSubmit="HandleLoginAsync">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
 
-    <button class="btn btn-primary" type="submit" disabled="@_isLoading">@(_isLoading ? "Signing in..." : "Sign in")</button>
-</EditForm>
+        <div class="mb-3">
+            <label>Email</label>
+            <InputText class="form-control" @bind-Value="_model.Email" />
+        </div>
 
-@if (!string.IsNullOrWhiteSpace(_error))
-{
-    <p class="text-danger mt-3">@_error</p>
-}
+        <div class="mb-3">
+            <label>Password</label>
+            <InputText class="form-control" type="password" @bind-Value="_model.Password" />
+        </div>
+
+        <button class="btn btn-primary" type="submit" disabled="@_isLoading">@(_isLoading ? "Signing in..." : "Sign in")</button>
+    </EditForm>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <p class="text-danger mt-3">@_error</p>
+    }
+</div>
 
 @code {
-    private readonly LoginFormModel _model = new()
-    {
-        Email = "attendee@seatsync.demo",
-        Password = "demo123"
-    };
+    private readonly LoginFormModel _model = new();
+    private LoginProfile _selectedProfile = LoginProfile.Attendee;
     private bool _isLoading;
     private string _error = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        SetProfile(LoginProfile.Attendee);
+    }
+
+    private void SetProfile(LoginProfile profile)
+    {
+        _selectedProfile = profile;
+        if (profile == LoginProfile.Admin)
+        {
+            _model.Email = "admin@seatsync.demo";
+            _model.Password = "demo123";
+            return;
+        }
+
+        _model.Email = "attendee@seatsync.demo";
+        _model.Password = "demo123";
+    }
 
     private async Task HandleLoginAsync()
     {
@@ -61,7 +92,12 @@
                 result.AccessToken,
                 result.ExpiresAtUtc));
 
-            Nav.NavigateTo("/seating");
+            var target = string.Equals(result.Role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(result.Role, "Organizer", StringComparison.OrdinalIgnoreCase)
+                ? "/admin/events"
+                : "/events";
+
+            Nav.NavigateTo(target);
         }
         finally
         {
@@ -73,5 +109,11 @@
     {
         public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
+    }
+
+    private enum LoginProfile
+    {
+        Attendee,
+        Admin
     }
 }

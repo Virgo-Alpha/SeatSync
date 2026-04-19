@@ -11,6 +11,7 @@ builder.Services.Configure<SeatSyncApiOptions>(
     builder.Configuration.GetSection("SeatSyncApi"));
 
 builder.Services.AddScoped<IUserSessionService, UserSessionService>();
+builder.Services.AddScoped<ICheckoutFlowState, CheckoutFlowState>();
 
 builder.Services.AddHttpClient<ISeatSyncApiClient, SeatSyncApiClient>((serviceProvider, client) =>
 {

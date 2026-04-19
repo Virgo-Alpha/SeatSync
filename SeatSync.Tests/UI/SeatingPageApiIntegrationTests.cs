@@ -35,8 +35,10 @@ public class SeatingPageApiIntegrationTests : TestContext
 
         Services.AddSingleton<IUserSessionService>(session);
         Services.AddSingleton<ISeatSyncApiClient>(api);
+        Services.AddSingleton<ICheckoutFlowState>(new CheckoutFlowState());
 
-        var cut = RenderComponent<Seating>();
+        var cut = RenderComponent<Seating>(parameters =>
+            parameters.Add(p => p.EventId, api.Events[0].Id));
 
         cut.WaitForAssertion(() => cut.FindAll("button.seat").Should().HaveCount(2));
     }
@@ -158,6 +160,26 @@ public class SeatingPageApiIntegrationTests : TestContext
             CancellationToken ct) =>
             Task.FromResult<EventApiModel?>(new EventApiModel(Guid.NewGuid(), name, startsAt, agenda));
 
+        public Task<EventApiModel?> UpdateEventAsync(
+            Guid eventId,
+            string name,
+            DateTimeOffset startsAt,
+            string? agenda,
+            CancellationToken ct) =>
+            Task.FromResult<EventApiModel?>(new EventApiModel(eventId, name, startsAt, agenda));
+
+        public Task<bool> DeleteEventAsync(Guid eventId, CancellationToken ct) =>
+            Task.FromResult(true);
+
+        public Task<IReadOnlyList<EventReservationApiModel>> GetEventReservationsAsync(Guid eventId, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<EventReservationApiModel>>([]);
+
+        public Task<bool> CreateSeatsAsync(
+            Guid eventId,
+            IReadOnlyCollection<CreateSeatRequestApiModel> seats,
+            CancellationToken ct) =>
+            Task.FromResult(true);
+
         public Task<MockPaymentResultApiModel> MockPaymentAsync(
             Guid orderId,
             bool shouldSucceed,
@@ -166,6 +188,9 @@ public class SeatingPageApiIntegrationTests : TestContext
 
         public Task<string?> DownloadReceiptAsync(Guid orderId, CancellationToken ct) =>
             Task.FromResult<string?>("receipt");
+
+        public Task<byte[]?> DownloadReceiptPdfAsync(Guid orderId, CancellationToken ct) =>
+            Task.FromResult<byte[]?>([1, 2, 3]);
 
         public Task<bool> EmailReceiptAsync(Guid orderId, string? emailTo, CancellationToken ct) =>
             Task.FromResult(true);

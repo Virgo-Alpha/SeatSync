@@ -1,0 +1,15 @@
+.receipt-page {
+    display: grid;
+    gap: 1rem;
+}
+
+.receipt-download-link {
+    font-weight: 700;
+}
+
+.receipt-frame {
+    width: 100%;
+    min-height: 70vh;
+    border: 1px solid #c9d7e3;
+    border-radius: 10px;
+}

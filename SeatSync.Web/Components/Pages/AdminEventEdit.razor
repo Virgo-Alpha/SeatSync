@@ -1,0 +1,126 @@
+@page "/admin/events/{EventId:guid}/edit"
+@rendermode InteractiveServer
+@inject ISeatSyncApiClient ApiClient
+@inject IUserSessionService Session
+@inject NavigationManager Nav
+
+<PageTitle>Edit Event</PageTitle>
+
+<div class="event-edit-page">
+    <h1>Edit event</h1>
+
+    @if (!CanManage)
+    {
+        <p class="status-message status-message--error">Only admins and organizers can edit events.</p>
+    }
+    else if (_isLoading)
+    {
+        <p class="status-message">Loading event...</p>
+    }
+    else if (_event is null)
+    {
+        <p class="status-message status-message--error">Event not found.</p>
+    }
+    else
+    {
+        <EditForm Model="_model" OnValidSubmit="SaveAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label for="event-name">Event name</label>
+                <InputText id="event-name" class="form-control" @bind-Value="_model.Name" />
+            </div>
+
+            <div class="mb-3">
+                <label for="event-date">Date (local)</label>
+                <InputDate id="event-date" class="form-control" @bind-Value="_model.StartsAtLocalDate" />
+            </div>
+
+            <div class="mb-3">
+                <label for="event-agenda">Agenda</label>
+                <InputTextArea id="event-agenda" class="form-control" @bind-Value="_model.Agenda" />
+            </div>
+
+            <div class="edit-actions">
+                <button class="edit-button" type="submit" disabled="@_isSaving">@(_isSaving ? "Saving..." : "Save changes")</button>
+                <button class="edit-button edit-button--secondary" type="button" @onclick="@(() => Nav.NavigateTo("/admin/events"))">Back</button>
+            </div>
+        </EditForm>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <p class="@(_isError ? "status-message status-message--error" : "status-message status-message--success")">@_status</p>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid EventId { get; set; }
+
+    private bool CanManage => Session.IsInRole("Admin") || Session.IsInRole("Organizer");
+    private EventApiModel? _event;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isError;
+    private string _status = string.Empty;
+    private readonly EventFormModel _model = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _event = (await ApiClient.GetEventsAsync(CancellationToken.None)).FirstOrDefault(x => x.Id == EventId);
+        if (_event is not null)
+        {
+            _model.Name = _event.Name;
+            _model.Agenda = _event.Agenda;
+            _model.StartsAtLocalDate = DateOnly.FromDateTime(_event.StartsAt.ToLocalTime().DateTime);
+        }
+
+        _isLoading = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!CanManage || _event is null)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _isError = false;
+        _status = string.Empty;
+
+        try
+        {
+            var localDateTime = _model.StartsAtLocalDate.ToDateTime(new TimeOnly(19, 0));
+            var updated = await ApiClient.UpdateEventAsync(
+                _event.Id,
+                _model.Name,
+                new DateTimeOffset(localDateTime).ToUniversalTime(),
+                _model.Agenda,
+                CancellationToken.None);
+
+            if (updated is null)
+            {
+                _isError = true;
+                _status = "Failed to update event.";
+                return;
+            }
+
+            _status = "Event updated.";
+            Nav.NavigateTo("/admin/events");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private sealed class EventFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public DateOnly StartsAtLocalDate { get; set; }
+        public string? Agenda { get; set; }
+    }
+}

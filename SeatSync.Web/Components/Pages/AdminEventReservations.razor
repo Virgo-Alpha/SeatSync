@@ -1,0 +1,100 @@
+@page "/admin/events/{EventId:guid}/reservations"
+@rendermode InteractiveServer
+@inject ISeatSyncApiClient ApiClient
+@inject IUserSessionService Session
+@inject NavigationManager Nav
+
+<PageTitle>Event Reservations</PageTitle>
+
+<div class="event-reservations-page">
+    <div class="event-reservations-header">
+        <h1>Event reservations</h1>
+        <button class="edit-button edit-button--secondary" type="button" @onclick="@(() => Nav.NavigateTo("/admin/events"))">Back</button>
+    </div>
+
+    @if (!CanManage)
+    {
+        <p class="status-message status-message--error">Only admins and organizers can view reservations.</p>
+    }
+    else if (_isLoading)
+    {
+        <p class="status-message">Loading reservations...</p>
+    }
+    else if (_reservations.Count == 0)
+    {
+        <p>No reservations yet for this event.</p>
+    }
+
+    @if (_seatMap.Count > 0)
+    {
+        <section class="arena-section" aria-label="Arena reservation map">
+            <h2>Arena map</h2>
+            <p class="arena-legend">
+                <span class="legend-item legend-item--booked">Booked</span>
+                <span class="legend-item legend-item--held">Held</span>
+                <span class="legend-item legend-item--available">Available</span>
+            </p>
+            <ReadOnlyArenaMap Seats="_seatMap" />
+        </section>
+    }
+
+    @if (_reservations.Count > 0)
+    {
+        <table class="reservations-table">
+            <thead>
+            <tr>
+                <th>Order</th>
+                <th>Booker</th>
+                <th>Seats</th>
+                <th>Payment</th>
+                <th>Amount</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var item in _reservations)
+            {
+                <tr>
+                    <td>@item.OrderId</td>
+                    <td>@item.BookerName<br /><small>@item.BookerEmail</small></td>
+                    <td>@(item.Seats.Count == 0 ? "N/A" : string.Join(", ", item.Seats))</td>
+                    <td>@item.PaymentState</td>
+                    <td>@item.TotalAmount.ToString("0.00") @item.Currency</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid EventId { get; set; }
+    private bool CanManage => Session.IsInRole("Admin") || Session.IsInRole("Organizer");
+    private bool _isLoading = true;
+    private List<EventReservationApiModel> _reservations = [];
+    private List<SeatViewModel> _seatMap = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _reservations = (await ApiClient.GetEventReservationsAsync(EventId, CancellationToken.None)).ToList();
+        _seatMap = (await ApiClient.GetSeatsAsync(EventId, CancellationToken.None))
+            .Select(MapSeat)
+            .ToList();
+        _isLoading = false;
+    }
+
+    private static SeatViewModel MapSeat(SeatApiModel seat) => new()
+    {
+        BackendSeatId = seat.Id,
+        Section = seat.Section,
+        Row = seat.Row,
+        Number = seat.Number,
+        State = seat.State switch
+        {
+            0 => SeatVisualState.Available,
+            1 => SeatVisualState.Held,
+            2 => SeatVisualState.Booked,
+            _ => SeatVisualState.Available
+        }
+    };
+}

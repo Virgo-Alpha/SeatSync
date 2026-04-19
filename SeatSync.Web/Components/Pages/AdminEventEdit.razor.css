@@ -1,0 +1,25 @@
+.event-edit-page {
+    max-width: 760px;
+    display: grid;
+    gap: 1rem;
+}
+
+.edit-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.edit-button {
+    border: 1px solid #0f5c8e;
+    background: #0f5c8e;
+    color: #fff;
+    border-radius: 8px;
+    padding: 0.45rem 0.85rem;
+    font-weight: 700;
+}
+
+.edit-button--secondary {
+    background: #fff;
+    color: #0f5c8e;
+}

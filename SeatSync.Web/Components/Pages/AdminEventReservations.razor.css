@@ -1,0 +1,94 @@
+.event-reservations-page {
+    display: grid;
+    gap: 1rem;
+}
+
+.event-reservations-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.event-reservations-header h1 {
+    margin: 0;
+}
+
+.edit-button {
+    border: 1px solid #0f5c8e;
+    background: #0f5c8e;
+    color: #fff;
+    border-radius: 8px;
+    padding: 0.45rem 0.85rem;
+    font-weight: 700;
+}
+
+.edit-button--secondary {
+    background: #fff;
+    color: #0f5c8e;
+}
+
+.reservations-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+.reservations-table th,
+.reservations-table td {
+    border: 1px solid #d7e1e9;
+    padding: 0.55rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.reservations-table thead {
+    background: #f3f8fc;
+}
+
+.arena-section {
+    border: 1px solid #d7e1e9;
+    border-radius: 12px;
+    padding: 0.9rem;
+    background: #f9fcff;
+    display: grid;
+    gap: 0.75rem;
+}
+
+.arena-section h2 {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.arena-legend {
+    margin: 0;
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    border-radius: 999px;
+    padding: 0.25rem 0.55rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+}
+
+.legend-item--booked {
+    background: #d9dde2;
+    color: #3f4d5e;
+    border-color: #b6c0cc;
+}
+
+.legend-item--held {
+    background: #ffe4b8;
+    color: #6d4400;
+    border-color: #efc278;
+}
+
+.legend-item--available {
+    background: #d8f6e7;
+    color: #0f4f32;
+    border-color: #86cfaa;
+}

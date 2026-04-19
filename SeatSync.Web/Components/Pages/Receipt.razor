@@ -1,0 +1,42 @@
+@page "/receipt/{OrderId:guid}"
+@rendermode InteractiveServer
+@inject ISeatSyncApiClient ApiClient
+
+<PageTitle>Receipt PDF</PageTitle>
+
+<div class="receipt-page">
+    <h1>Receipt PDF</h1>
+
+    @if (_isLoading)
+    {
+        <p class="status-message">Loading receipt...</p>
+    }
+    else if (_pdfDataUrl is null)
+    {
+        <p class="status-message status-message--error">Receipt not found or you do not have access to it.</p>
+    }
+    else
+    {
+        <p>Receipt number: <strong>@OrderId</strong></p>
+        <a class="receipt-download-link" href="@_pdfDataUrl" download="@($"SeatSync-Receipt-{OrderId}.pdf")">Download PDF</a>
+        <iframe class="receipt-frame" src="@_pdfDataUrl" title="Receipt PDF preview"></iframe>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid OrderId { get; set; }
+
+    private bool _isLoading = true;
+    private string? _pdfDataUrl;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        var pdfBytes = await ApiClient.DownloadReceiptPdfAsync(OrderId, CancellationToken.None);
+        _pdfDataUrl = pdfBytes is null
+            ? null
+            : $"data:application/pdf;base64,{Convert.ToBase64String(pdfBytes)}";
+        _isLoading = false;
+    }
+}

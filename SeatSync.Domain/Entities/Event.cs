@@ -37,4 +37,14 @@ public sealed class Event
     {
         _seats.Add(seat);
     }
+
+    public void UpdateDetails(string name, DateTimeOffset startsAt, string? agenda)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Event name is required.", nameof(name));
+
+        Name = name.Trim();
+        StartsAt = startsAt;
+        Agenda = string.IsNullOrWhiteSpace(agenda) ? null : agenda.Trim();
+    }
 }

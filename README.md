@@ -66,7 +66,7 @@ docker compose up -d
 2. Open:
 
 ```
-http://localhost:5186/seating
+http://localhost:5186/
 ```
 
 3. Swagger UI:
@@ -111,10 +111,18 @@ Demo authentication accounts (seeded automatically):
 * `admin@seatsync.demo` / `demo123` (`Admin`)
 * `organizer@seatsync.demo` / `demo123` (`Organizer`)
 * `attendee@seatsync.demo` / `demo123` (`Attendee`)
+* `attendee2@seatsync.demo` / `demo123` (`Attendee`)
+* `attendee3@seatsync.demo` / `demo123` (`Attendee`)
+
+Manual seed command (runs migrations + seed data and exits):
+
+```bash
+./scripts/seed-db.sh
+```
 
 RBAC summary:
 
-* `Admin`/`Organizer`: create events, generate seat inventory, redeem tickets.
+* `Admin`/`Organizer`: full event management (create/list/edit/delete), view event reservations, generate seat inventory, redeem tickets.
 * Authenticated users: create holds, finalize orders, run mock payments, download/email receipts.
 
 ### Migrations and DB Updates
@@ -167,7 +175,16 @@ docker compose up -d
 
 ### Blazor Seating Chart (UI)
 
-`SeatSync.Web` includes an interactive seating chart page at `/seating`.
+`SeatSync.Web` includes:
+
+* `/events` to choose an event
+* `/seating/{eventId}` to select seats and create a hold
+* `/checkout/{holdId}` to complete payment
+* `/receipt/{orderId}` to open/download the PDF receipt
+* `/admin/events` manager dashboard for event CRUD
+* `/admin/events/new` create event
+* `/admin/events/{eventId}/edit` edit event details
+* `/admin/events/{eventId}/reservations` view reservations
 
 Seat states:
 
@@ -179,15 +196,17 @@ Seat states:
 Backend integration:
 
 * Seat map is fetched from `GET /api/events/{eventId}/seats`.
-* Booking submit runs a two-step backend flow: `POST /api/holds` then `POST /api/orders/finalize`.
-* Successful finalize creates an order, marks seats `Booked`, and issues tickets atomically.
-* Conflict responses (`409`) are rendered in the UI and the seat map is reloaded from backend truth.
-* Seat state is not persisted in the browser; refresh always reflects SQL Server state.
+* Proceed-to-payment reserves seats with `POST /api/holds`.
+* Checkout runs `POST /api/orders/finalize` and `POST /api/orders/{orderId}/payments/mock`.
+* Receipts are available via `GET /api/orders/{orderId}/receipt` and `GET /api/orders/{orderId}/receipt/pdf`.
 
 Event seat inventory generation:
 
 * Create event with seat-copy in one call: `POST /api/events` with `copySeatsFromEventId`.
 * Or generate seat inventory idempotently later: `POST /api/events/{eventId}/seat-inventory/generate`.
+* Update event details: `PUT /api/events/{eventId}`.
+* Delete event: `DELETE /api/events/{eventId}`.
+* View event reservations: `GET /api/events/{eventId}/reservations`.
 
 ---
 

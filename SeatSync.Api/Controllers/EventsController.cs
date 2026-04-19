@@ -126,6 +126,104 @@ public sealed class EventsController : ControllerBase
         return Ok(events);
     }
 
+    [HttpPut("{eventId:guid}")]
+    [Authorize(Roles = "Admin,Organizer")]
+    public async Task<ActionResult<EventResponse>> Update(
+        Guid eventId,
+        [FromBody] UpdateEventRequest request,
+        CancellationToken ct)
+    {
+        var ev = await _db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct);
+        if (ev is null)
+        {
+            return NotFound("Event not found.");
+        }
+
+        ev.UpdateDetails(request.Name, request.StartsAt, request.Agenda);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new EventResponse(ev.Id, ev.Name, ev.StartsAt, ev.Agenda));
+    }
+
+    [HttpDelete("{eventId:guid}")]
+    [Authorize(Roles = "Admin,Organizer")]
+    public async Task<ActionResult<object>> Delete(Guid eventId, CancellationToken ct)
+    {
+        var ev = await _db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct);
+        if (ev is null)
+        {
+            return NotFound("Event not found.");
+        }
+
+        _db.Events.Remove(ev);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { Message = "Event deleted." });
+    }
+
+    [HttpGet("{eventId:guid}/reservations")]
+    [Authorize(Roles = "Admin,Organizer")]
+    public async Task<ActionResult<IReadOnlyList<EventReservationResponse>>> GetReservations(
+        Guid eventId,
+        CancellationToken ct)
+    {
+        var eventExists = await _db.Events.AnyAsync(x => x.Id == eventId, ct);
+        if (!eventExists)
+        {
+            return NotFound("Event not found.");
+        }
+
+        var seatLabelsByOrder = await _db.SeatStatuses
+            .Where(x => x.EventId == eventId && x.OrderId != null)
+            .Join(_db.Seats,
+                status => status.SeatId,
+                seat => seat.Id,
+                (status, seat) => new
+                {
+                    OrderId = status.OrderId!.Value,
+                    SeatLabel = $"{seat.Row}{seat.Number}"
+                })
+            .ToListAsync(ct);
+
+        var orders = await _db.Orders
+            .AsNoTracking()
+            .Where(x => x.EventId == eventId)
+            .Join(_db.AppUsers,
+                order => order.UserId,
+                user => user.Id,
+                (order, user) => new
+                {
+                    order.Id,
+                    order.State,
+                    order.TotalAmount,
+                    order.Currency,
+                    order.CreatedAt,
+                    order.CompletedAt,
+                    BookerName = user.DisplayName,
+                    BookerEmail = user.Email
+                })
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(ct);
+
+        var response = orders
+            .Select(order => new EventReservationResponse(
+                order.Id,
+                order.BookerName,
+                order.BookerEmail,
+                seatLabelsByOrder
+                    .Where(x => x.OrderId == order.Id)
+                    .Select(x => x.SeatLabel)
+                    .OrderBy(x => x)
+                    .ToList(),
+                order.State.ToString(),
+                order.TotalAmount,
+                order.Currency,
+                order.CreatedAt,
+                order.CompletedAt))
+            .ToList();
+
+        return Ok(response);
+    }
+
     private async Task<(bool Success, int CopiedSeatCount, int? ErrorStatusCode, string? ErrorMessage)> CloneSeatInventoryAsync(
         Guid sourceEventId,
         Guid targetEventId,
@@ -167,3 +265,13 @@ public sealed class EventsController : ControllerBase
 }
 
 public sealed record GenerateSeatInventoryRequest(Guid SourceEventId);
+public sealed record EventReservationResponse(
+    Guid OrderId,
+    string BookerName,
+    string BookerEmail,
+    IReadOnlyList<string> Seats,
+    string PaymentState,
+    decimal TotalAmount,
+    string Currency,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? CompletedAt);

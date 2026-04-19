@@ -1,0 +1,24 @@
+.login-page {
+    max-width: 560px;
+}
+
+.login-toggle {
+    display: inline-flex;
+    border: 1px solid #c8d7e3;
+    border-radius: 9px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.login-toggle__button {
+    border: 0;
+    background: #f2f8fc;
+    color: #33556b;
+    padding: 0.45rem 0.95rem;
+    font-weight: 700;
+}
+
+.login-toggle__button.is-active {
+    background: #0f5c8e;
+    color: #fff;
+}

@@ -1,0 +1,56 @@
+@page "/events"
+@rendermode InteractiveServer
+@inject ISeatSyncApiClient ApiClient
+@inject NavigationManager Nav
+
+<PageTitle>Select Event</PageTitle>
+
+<div class="events-page">
+    <header>
+        <h1>Choose an event</h1>
+        <p>Select an event first, then reserve seats and continue to payment.</p>
+    </header>
+
+    @if (_isLoading)
+    {
+        <p class="status-message">Loading events...</p>
+    }
+    else if (_events.Count == 0)
+    {
+        <p class="status-message status-message--error">No events are available yet. Ask an admin to create one.</p>
+    }
+    else
+    {
+        <section class="event-grid" aria-label="Available events">
+            @foreach (var ev in _events)
+            {
+                <article class="event-card">
+                    <h2>@ev.Name</h2>
+                    <p class="event-card__meta">@ev.StartsAt.ToLocalTime().ToString("dddd, MMM d yyyy h:mm tt")</p>
+                    @if (!string.IsNullOrWhiteSpace(ev.Agenda))
+                    {
+                        <p>@ev.Agenda</p>
+                    }
+                    <button class="event-card__cta" type="button" @onclick="@(() => OpenEvent(ev.Id))">
+                        Reserve seats
+                    </button>
+                </article>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private List<EventApiModel> _events = [];
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _events = (await ApiClient.GetEventsAsync(CancellationToken.None))
+            .OrderBy(x => x.StartsAt)
+            .ToList();
+        _isLoading = false;
+    }
+
+    private void OpenEvent(Guid eventId) => Nav.NavigateTo($"/seating/{eventId}");
+}

@@ -1,0 +1,154 @@
+@page "/admin/events/new"
+@rendermode InteractiveServer
+@inject ISeatSyncApiClient ApiClient
+@inject IUserSessionService Session
+@inject NavigationManager Nav
+
+<PageTitle>Create Event</PageTitle>
+
+<div class="event-edit-page">
+    <h1>Create event</h1>
+
+    @if (!CanManage)
+    {
+        <p class="status-message status-message--error">Only admins and organizers can create events.</p>
+    }
+    else
+    {
+        <EditForm Model="_model" OnValidSubmit="CreateEventAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label for="event-name">Event name</label>
+                <InputText id="event-name" class="form-control" @bind-Value="_model.Name" />
+            </div>
+
+            <div class="mb-3">
+                <label for="event-date">Date (local)</label>
+                <InputDate id="event-date" class="form-control" @bind-Value="_model.StartsAtLocalDate" />
+            </div>
+
+            <div class="mb-3">
+                <label for="event-agenda">Agenda</label>
+                <InputTextArea id="event-agenda" class="form-control" @bind-Value="_model.Agenda" />
+            </div>
+
+            <div class="mb-3">
+                <label for="seat-source">Copy seats from event (optional)</label>
+                <select id="seat-source" class="form-select" @bind="_model.CopySeatsFromEventIdText">
+                    <option value="">Use default generated seat map</option>
+                    @foreach (var ev in _events)
+                    {
+                        <option value="@ev.Id.ToString()">@ev.Name (@ev.StartsAt.ToLocalTime().ToString("MMM d yyyy"))</option>
+                    }
+                </select>
+            </div>
+
+            <div class="edit-actions">
+                <button class="edit-button" type="submit" disabled="@_isSaving">@(_isSaving ? "Creating..." : "Create event")</button>
+                <button class="edit-button edit-button--secondary" type="button" @onclick="@(() => Nav.NavigateTo("/admin/events"))">Back</button>
+            </div>
+        </EditForm>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <p class="@(_isError ? "status-message status-message--error" : "status-message status-message--success")">@_status</p>
+    }
+</div>
+
+@code {
+    private readonly EventFormModel _model = new();
+    private List<EventApiModel> _events = [];
+    private bool _isSaving;
+    private bool _isError;
+    private string _status = string.Empty;
+
+    private bool CanManage => Session.IsInRole("Admin") || Session.IsInRole("Organizer");
+
+    protected override async Task OnInitializedAsync()
+    {
+        _model.StartsAtLocalDate = DateOnly.FromDateTime(DateTime.Now.AddDays(7));
+        _events = (await ApiClient.GetEventsAsync(CancellationToken.None)).ToList();
+    }
+
+    private async Task CreateEventAsync()
+    {
+        if (!CanManage)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _isError = false;
+        _status = string.Empty;
+
+        try
+        {
+            var localDateTime = _model.StartsAtLocalDate.ToDateTime(new TimeOnly(19, 0));
+            var startsAtOffset = new DateTimeOffset(localDateTime);
+            var copyId = Guid.TryParse(_model.CopySeatsFromEventIdText, out var parsedCopyId)
+                ? parsedCopyId
+                : (Guid?)null;
+
+            var created = await ApiClient.CreateEventAsync(
+                _model.Name,
+                startsAtOffset.ToUniversalTime(),
+                _model.Agenda,
+                copyId,
+                CancellationToken.None);
+
+            if (created is null)
+            {
+                _isError = true;
+                _status = "Failed to create event.";
+                return;
+            }
+
+            if (!copyId.HasValue)
+            {
+                var createdSeats = await ApiClient.CreateSeatsAsync(
+                    created.Id,
+                    BuildDefaultSeats(),
+                    CancellationToken.None);
+
+                if (!createdSeats)
+                {
+                    _isError = true;
+                    _status = $"Event '{created.Name}' was created, but generating seats failed.";
+                    return;
+                }
+            }
+
+            Nav.NavigateTo("/admin/events");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private static List<CreateSeatRequestApiModel> BuildDefaultSeats()
+    {
+        var seats = new List<CreateSeatRequestApiModel>();
+        var rows = new[] { "A", "B", "C", "D", "E" };
+        for (var rowIndex = 0; rowIndex < rows.Length; rowIndex++)
+        {
+            for (var seatNumber = 1; seatNumber <= 10; seatNumber++)
+            {
+                seats.Add(new CreateSeatRequestApiModel("Main Floor", rows[rowIndex], seatNumber.ToString(), seatNumber, rowIndex + 1));
+            }
+        }
+
+        return seats;
+    }
+
+    private sealed class EventFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public DateOnly StartsAtLocalDate { get; set; }
+        public string? Agenda { get; set; }
+        public string? CopySeatsFromEventIdText { get; set; }
+    }
+}

@@ -1,0 +1,40 @@
+.events-page {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.event-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.event-card {
+    border: 1px solid #c9d7e3;
+    border-radius: 14px;
+    padding: 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    display: grid;
+    gap: 0.65rem;
+}
+
+.event-card h2 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.event-card__meta {
+    margin: 0;
+    color: #28526e;
+    font-weight: 600;
+}
+
+.event-card__cta {
+    justify-self: start;
+    border: 1px solid #0f5c8e;
+    background: #0f5c8e;
+    color: #fff;
+    border-radius: 8px;
+    padding: 0.5rem 0.9rem;
+    font-weight: 700;
+}

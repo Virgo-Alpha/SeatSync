@@ -1,0 +1,143 @@
+@page "/checkout/{HoldId:guid}"
+@rendermode InteractiveServer
+@inject IUserSessionService Session
+@inject ISeatSyncApiClient ApiClient
+@inject ICheckoutFlowState CheckoutFlow
+@inject NavigationManager Nav
+
+<PageTitle>Checkout</PageTitle>
+
+<div class="checkout-page">
+    <h1>Checkout</h1>
+
+    @if (!Session.IsAuthenticated)
+    {
+        <p class="status-message status-message--error">Please sign in to continue payment.</p>
+        <button class="checkout-button" @onclick="@(() => Nav.NavigateTo("/login"))">Go to login</button>
+    }
+    else if (_checkout is null)
+    {
+        <p class="status-message status-message--error">Your reserved checkout session was not found. Please reserve seats again.</p>
+        <button class="checkout-button" @onclick="@(() => Nav.NavigateTo("/events"))">Choose event</button>
+    }
+    else
+    {
+        <section class="checkout-card" aria-label="Reserved seat summary">
+            <p><strong>Event:</strong> @_checkout.EventName</p>
+            <p><strong>When:</strong> @_checkout.EventStartsAt.ToLocalTime().ToString("dddd, MMM d yyyy h:mm tt")</p>
+            <p><strong>Seats:</strong> @string.Join(", ", _checkout.SeatLabels)</p>
+            <p><strong>Hold expires:</strong> @_checkout.HoldExpiresAtUtc.ToLocalTime().ToString("h:mm:ss tt")</p>
+        </section>
+
+        @if (!_isComplete)
+        {
+            <fieldset class="checkout-options">
+                <legend>Mock payment outcome</legend>
+                <label>
+                    <input type="radio" checked="@_mockPaymentShouldSucceed" @onchange="@(() => _mockPaymentShouldSucceed = true)" />
+                    Success
+                </label>
+                <label>
+                    <input type="radio" checked="@(!_mockPaymentShouldSucceed)" @onchange="@(() => _mockPaymentShouldSucceed = false)" />
+                    Fail
+                </label>
+            </fieldset>
+
+            <button class="checkout-button" type="button" disabled="@_isSubmitting" @onclick="CompletePaymentAsync">
+                @(_isSubmitting ? "Processing payment..." : "Pay now")
+            </button>
+        }
+        else if (_orderId.HasValue)
+        {
+            <section class="checkout-success" aria-live="polite">
+                <h2>Payment captured</h2>
+                <p>Your receipt number is <strong>@_orderId.Value</strong>.</p>
+                <a class="checkout-link" href="@($"/receipt/{_orderId.Value}")" target="_blank" rel="noopener noreferrer">
+                    Open receipt PDF
+                </a>
+            </section>
+        }
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <p class="@(_isError ? "status-message status-message--error" : "status-message status-message--success")">@_status</p>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid HoldId { get; set; }
+
+    private PendingCheckoutModel? _checkout;
+    private bool _mockPaymentShouldSucceed = true;
+    private bool _isSubmitting;
+    private bool _isComplete;
+    private Guid? _orderId;
+    private string _status = string.Empty;
+    private bool _isError;
+
+    protected override void OnParametersSet()
+    {
+        _checkout = CheckoutFlow.TryGet(HoldId, out var checkout)
+            ? checkout
+            : null;
+    }
+
+    private async Task CompletePaymentAsync()
+    {
+        if (_checkout is null || !Session.IsAuthenticated)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+        _status = string.Empty;
+        _isError = false;
+
+        try
+        {
+            var finalizeResult = await ApiClient.FinalizeOrderAsync(
+                HoldId,
+                idempotencyKey: $"{Session.CurrentUser!.UserId:N}-{Guid.NewGuid():N}",
+                CancellationToken.None);
+
+            if (!finalizeResult.IsSuccess || !finalizeResult.OrderId.HasValue)
+            {
+                _isError = true;
+                _status = finalizeResult.IsConflict
+                    ? "Your hold expired or seats changed. Please reserve seats again."
+                    : finalizeResult.Message ?? "Failed to finalize order.";
+                return;
+            }
+
+            var paymentResult = await ApiClient.MockPaymentAsync(finalizeResult.OrderId.Value, _mockPaymentShouldSucceed, CancellationToken.None);
+            if (!paymentResult.IsSuccess || !string.Equals(paymentResult.State, "Captured", StringComparison.OrdinalIgnoreCase))
+            {
+                _isError = true;
+                _status = paymentResult.Message ?? "Payment failed.";
+                return;
+            }
+
+            _orderId = finalizeResult.OrderId.Value;
+            _isComplete = true;
+            _status = "Payment successful. Use the receipt number to open the PDF.";
+            await ApiClient.EmailReceiptAsync(_orderId.Value, Session.CurrentUser?.Email, CancellationToken.None);
+            CheckoutFlow.Clear();
+        }
+        catch (HttpRequestException)
+        {
+            _isError = true;
+            _status = "SeatSync API is unreachable.";
+        }
+        catch (TaskCanceledException)
+        {
+            _isError = true;
+            _status = "Payment request timed out.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

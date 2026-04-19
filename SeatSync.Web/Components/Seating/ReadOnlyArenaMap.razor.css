@@ -1,0 +1,71 @@
+.readonly-map {
+    display: grid;
+    gap: 1rem;
+}
+
+.readonly-map__section {
+    border: 1px solid #d9dde4;
+    border-radius: 10px;
+    padding: 0.85rem;
+    background: #fcfcfd;
+}
+
+.readonly-map__section h3 {
+    margin: 0 0 0.7rem;
+    font-size: 1rem;
+}
+
+.readonly-map__row {
+    display: flex;
+    gap: 0.65rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.readonly-map__row-label {
+    min-width: 4.2rem;
+    font-weight: 600;
+}
+
+.readonly-map__seats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.readonly-seat {
+    border: 1px solid transparent;
+    border-radius: 8px;
+    min-width: 2rem;
+    min-height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.readonly-seat.seat--available {
+    background: #d8f6e7;
+    color: #0f4f32;
+    border-color: #86cfaa;
+}
+
+.readonly-seat.seat--held {
+    background: #ffe4b8;
+    color: #6d4400;
+    border-color: #efc278;
+}
+
+.readonly-seat.seat--booked {
+    background: #d9dde2;
+    color: #3f4d5e;
+    border-color: #b6c0cc;
+}
+
+.readonly-seat.seat--selected {
+    background: #1f7ae0;
+    color: #fff;
+    border-color: #174e8b;
+}

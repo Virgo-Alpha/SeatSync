@@ -1,25 +1,21 @@
 @implements IDisposable
 @inherits LayoutComponentBase
 @inject IUserSessionService Session
+@inject NavigationManager Nav
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
-
+<div class="app-shell">
+    <header class="app-top px-4">
+        <a class="landing-brand" href="/">SeatSync</a>
+        @if (Session.IsAuthenticated)
+        {
+            <a class="landing-login" href="/logout">Logout</a>
+        }
+        else if (IsLandingPage)
+        {
+            <a class="landing-login" href="/login">Login</a>
+        }
+    </header>
     <main>
-        <div class="top-row px-4">
-            <a href="https://github.com/Virgo-Alpha/SeatSync" target="_blank">Repository</a>
-            @if (Session.IsAuthenticated && Session.CurrentUser is not null)
-            {
-                <span class="ms-auto">Signed in as @Session.CurrentUser.DisplayName (@Session.CurrentUser.Role)</span>
-            }
-            else
-            {
-                <span class="ms-auto">Not signed in</span>
-            }
-        </div>
-
         <article class="content px-4">
             @Body
         </article>
@@ -36,12 +32,24 @@
     protected override void OnInitialized()
     {
         Session.Changed += HandleSessionChanged;
+        Nav.LocationChanged += HandleLocationChanged;
     }
 
     public void Dispose()
     {
         Session.Changed -= HandleSessionChanged;
+        Nav.LocationChanged -= HandleLocationChanged;
     }
 
     private void HandleSessionChanged() => InvokeAsync(StateHasChanged);
+    private void HandleLocationChanged(object? _, LocationChangedEventArgs __) => InvokeAsync(StateHasChanged);
+
+    private bool IsLandingPage
+    {
+        get
+        {
+            var relativePath = Nav.ToBaseRelativePath(Nav.Uri).Trim('/');
+            return string.IsNullOrWhiteSpace(relativePath);
+        }
+    }
 }

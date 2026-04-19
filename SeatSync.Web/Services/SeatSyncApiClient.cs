@@ -139,6 +139,57 @@ public sealed class SeatSyncApiClient : ISeatSyncApiClient
         return await response.Content.ReadFromJsonAsync<EventApiModel>(JsonOptions, ct);
     }
 
+    public async Task<EventApiModel?> UpdateEventAsync(
+        Guid eventId,
+        string name,
+        DateTimeOffset startsAt,
+        string? agenda,
+        CancellationToken ct)
+    {
+        var request = CreateRequest(HttpMethod.Put, $"api/events/{eventId}", requiresAuth: true);
+        request.Content = JsonContent.Create(new UpdateEventRequestApiModel(name, startsAt, agenda));
+
+        var response = await _httpClient.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        return await response.Content.ReadFromJsonAsync<EventApiModel>(JsonOptions, ct);
+    }
+
+    public async Task<bool> DeleteEventAsync(Guid eventId, CancellationToken ct)
+    {
+        var request = CreateRequest(HttpMethod.Delete, $"api/events/{eventId}", requiresAuth: true);
+        var response = await _httpClient.SendAsync(request, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<IReadOnlyList<EventReservationApiModel>> GetEventReservationsAsync(Guid eventId, CancellationToken ct)
+    {
+        var request = CreateRequest(HttpMethod.Get, $"api/events/{eventId}/reservations", requiresAuth: true);
+        var response = await _httpClient.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            return [];
+        }
+
+        var reservations = await response.Content.ReadFromJsonAsync<List<EventReservationApiModel>>(JsonOptions, ct);
+        return reservations ?? [];
+    }
+
+    public async Task<bool> CreateSeatsAsync(
+        Guid eventId,
+        IReadOnlyCollection<CreateSeatRequestApiModel> seats,
+        CancellationToken ct)
+    {
+        var request = CreateRequest(HttpMethod.Post, $"api/events/{eventId}/seats", requiresAuth: true);
+        request.Content = JsonContent.Create(seats);
+
+        var response = await _httpClient.SendAsync(request, ct);
+        return response.IsSuccessStatusCode;
+    }
+
     public async Task<MockPaymentResultApiModel> MockPaymentAsync(Guid orderId, bool shouldSucceed, CancellationToken ct)
     {
         var request = CreateRequest(HttpMethod.Post, $"api/orders/{orderId}/payments/mock", requiresAuth: true);
@@ -165,6 +216,18 @@ public sealed class SeatSyncApiClient : ISeatSyncApiClient
         }
 
         return await response.Content.ReadAsStringAsync(ct);
+    }
+
+    public async Task<byte[]?> DownloadReceiptPdfAsync(Guid orderId, CancellationToken ct)
+    {
+        var request = CreateRequest(HttpMethod.Get, $"api/orders/{orderId}/receipt/pdf", requiresAuth: true);
+        var response = await _httpClient.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        return await response.Content.ReadAsByteArrayAsync(ct);
     }
 
     public async Task<bool> EmailReceiptAsync(Guid orderId, string? emailTo, CancellationToken ct)

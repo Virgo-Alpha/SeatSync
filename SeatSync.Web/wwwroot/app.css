@@ -27,6 +27,19 @@ a, .btn-link {
     font-weight: 600;
 }
 
+.status-message {
+    margin: 0;
+    font-weight: 600;
+}
+
+.status-message--success {
+    color: #166534;
+}
+
+.status-message--error {
+    color: #b91c1c;
+}
+
 h1:focus {
     outline: none;
 }

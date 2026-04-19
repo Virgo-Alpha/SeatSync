@@ -5,12 +5,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using SeatSync.Api.Auth;
-using SeatSync.Domain.Entities;
-using SeatSync.Domain.Enums;
 using SeatSync.Infrastructure.Data;
 using SeatSync.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+var seedOnly = args.Any(x => string.Equals(x, "--seed-only", StringComparison.OrdinalIgnoreCase));
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -56,33 +55,15 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+if (seedOnly)
+{
+    await ApplyMigrationsAndSeedAsync(app.Services);
+    return;
+}
+
 if (!app.Environment.IsEnvironment("Testing"))
 {
-    using var scope = app.Services.CreateScope();
-    var dbContext = scope.ServiceProvider.GetRequiredService<SeatSyncDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
-        .CreateLogger("DatabaseStartup");
-
-    const int maxAttempts = 10;
-    for (var attempt = 1; attempt <= maxAttempts; attempt++)
-    {
-        try
-        {
-            dbContext.Database.Migrate();
-            await EnsureSeedDataAsync(dbContext);
-            break;
-        }
-        catch (Exception ex) when (attempt < maxAttempts)
-        {
-            logger.LogWarning(
-                ex,
-                "Database migration attempt {Attempt}/{MaxAttempts} failed. Retrying...",
-                attempt,
-                maxAttempts);
-
-            await Task.Delay(TimeSpan.FromSeconds(5));
-        }
-    }
+    await ApplyMigrationsAndSeedAsync(app.Services);
 }
 
 if (app.Environment.IsDevelopment())
@@ -100,64 +81,32 @@ app.UseAuthorization();
 app.MapControllers();
 app.Run();
 
-static async Task EnsureSeedDataAsync(SeatSyncDbContext dbContext)
+static async Task ApplyMigrationsAndSeedAsync(IServiceProvider services)
 {
-    if (!await dbContext.AppUsers.AnyAsync())
+    using var scope = services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<SeatSyncDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("DatabaseStartup");
+    var clock = scope.ServiceProvider.GetRequiredService<TimeProvider>();
+
+    const int maxAttempts = 10;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
     {
-        dbContext.AppUsers.AddRange(
-            new AppUser(
-                id: Guid.Parse("3ce0af30-44f7-4a5e-9b25-3ca672ebd5bb"),
-                email: "admin@seatsync.demo",
-                displayName: "SeatSync Admin",
-                password: "demo123",
-                role: UserRole.Admin),
-            new AppUser(
-                id: Guid.Parse("f8764ebb-7e22-40af-abf6-145bcf58f3a3"),
-                email: "organizer@seatsync.demo",
-                displayName: "Event Organizer",
-                password: "demo123",
-                role: UserRole.Organizer),
-            new AppUser(
-                id: Guid.Parse("ec880f1f-8a06-419f-97d0-68c3ef548b15"),
-                email: "attendee@seatsync.demo",
-                displayName: "Demo Attendee",
-                password: "demo123",
-                role: UserRole.Attendee));
-    }
-
-    if (!await dbContext.Events.AnyAsync())
-    {
-        var seededEvent = new Event(
-            "SeatSync Demo Event",
-            DateTimeOffset.UtcNow.AddDays(10),
-            "Doors open 18:30. Main act starts 19:00.",
-            Guid.Parse("f8764ebb-7e22-40af-abf6-145bcf58f3a3"));
-
-        dbContext.Events.Add(seededEvent);
-
-        var rows = new[] { "A", "B", "C", "D", "E", "F", "G" };
-        for (var rowIndex = 0; rowIndex < rows.Length; rowIndex++)
+        try
         {
-            var row = rows[rowIndex];
-            var rowPosition = rowIndex + 1;
-            for (var seatNumber = 1; seatNumber <= 12; seatNumber++)
-            {
-                var seat = new Seat(
-                    seededEvent.Id,
-                    "Orchestra",
-                    row,
-                    seatNumber.ToString(),
-                    seatNumber,
-                    rowPosition);
+            dbContext.Database.Migrate();
+            await DemoDataSeeder.SeedAsync(dbContext, clock);
+            break;
+        }
+        catch (Exception ex) when (attempt < maxAttempts)
+        {
+            logger.LogWarning(
+                ex,
+                "Database migration attempt {Attempt}/{MaxAttempts} failed. Retrying...",
+                attempt,
+                maxAttempts);
 
-                dbContext.Seats.Add(seat);
-                dbContext.SeatStatuses.Add(new SeatStatus(
-                    seededEvent.Id,
-                    seat.Id,
-                    SeatState.Available));
-            }
+            await Task.Delay(TimeSpan.FromSeconds(5));
         }
     }
-
-    await dbContext.SaveChangesAsync();
 }

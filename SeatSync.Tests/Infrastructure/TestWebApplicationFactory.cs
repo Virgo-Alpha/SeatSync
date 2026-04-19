@@ -47,6 +47,7 @@ public class TestWebApplicationFactory
         
             // This ensures the in-memory SQLite tables are created
             db.Database.EnsureCreated();
+            DemoDataSeeder.SeedAsync(db, TimeProvider.System).GetAwaiter().GetResult();
         });
     }
 

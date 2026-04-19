@@ -1,0 +1,37 @@
+@using SeatSync.Web.Models
+
+<div class="readonly-map">
+    @foreach (var sectionGroup in Seats.GroupBy(s => s.Section).OrderBy(g => g.Key))
+    {
+        <section class="readonly-map__section">
+            <h3>@sectionGroup.Key Section</h3>
+
+            @foreach (var rowGroup in sectionGroup.GroupBy(s => s.Row).OrderBy(g => g.Key))
+            {
+                var orderedSeats = rowGroup
+                    .OrderBy(s => int.TryParse(s.Number, out var n) ? n : int.MaxValue)
+                    .ThenBy(s => s.Number, StringComparer.Ordinal)
+                    .ToList();
+
+                <div class="readonly-map__row">
+                    <span class="readonly-map__row-label">Row @rowGroup.Key</span>
+                    <div class="readonly-map__seats">
+                        @foreach (var seat in orderedSeats)
+                        {
+                            <span class="readonly-seat @SeatStateRules.ToCssClass(seat.State)"
+                                  title="@seat.SeatId - @seat.State"
+                                  aria-label="@seat.SeatId - @seat.State">
+                                @seat.Number
+                            </span>
+                        }
+                    </div>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<SeatViewModel> Seats { get; set; } = [];
+}

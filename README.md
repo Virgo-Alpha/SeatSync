@@ -126,6 +126,12 @@ Simulate GitHub Actions CI locally in an isolated temp workspace:
 ./scripts/run-ci-local.sh --mode working-tree
 ```
 
+By default, this script skips execution when only non-functional files changed (for example `README.md` or `.gitignore`). Force a run with:
+
+```bash
+./scripts/run-ci-local.sh --mode working-tree --all-changes
+```
+
 Run against committed `HEAD` only (closest to what GitHub Actions sees after push):
 
 ```bash

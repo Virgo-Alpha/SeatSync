@@ -106,6 +106,43 @@ Notes:
 * API startup now applies EF Core migrations automatically (with retry) so compose bootstraps the database schema.
 * `api` and `web` run in .NET SDK containers via `dotnet run` (source is bind-mounted), so code changes are reflected without rebuilding images.
 
+### Test Coverage and CI Scripts
+
+Run the same test command used in CI, including XPlat coverage collection and TRX output:
+
+```bash
+./scripts/run-tests-with-coverage.sh
+```
+
+Coverage/test artifacts are written to:
+
+```bash
+artifacts/test-results
+```
+
+Simulate GitHub Actions CI locally in an isolated temp workspace:
+
+```bash
+./scripts/run-ci-local.sh --mode working-tree
+```
+
+Run against committed `HEAD` only (closest to what GitHub Actions sees after push):
+
+```bash
+./scripts/run-ci-local.sh --mode head
+```
+
+Keep the temp workspace for inspection/debugging:
+
+```bash
+./scripts/run-ci-local.sh --mode head --keep-temp
+```
+
+GitHub Actions workflow:
+
+* File: `.github/workflows/ci.yml`
+* Steps: `dotnet restore SeatSync.sln`, `./scripts/run-tests-with-coverage.sh`, upload `artifacts/test-results`
+
 Demo authentication accounts (seeded automatically):
 
 * `admin@seatsync.demo` / `demo123` (`Admin`)

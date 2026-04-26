@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RESULTS_DIR="$ROOT_DIR/artifacts/test-results"
 export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-/tmp/seatsync-dotnet}"
+export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 
 rm -rf "$RESULTS_DIR"
 mkdir -p "$RESULTS_DIR"
@@ -15,9 +16,7 @@ dotnet test "$ROOT_DIR/SeatSync.sln" \
   --collect:"XPlat Code Coverage" \
   --settings "$ROOT_DIR/coverlet.runsettings" \
   --logger "trx;LogFileName=test-results.trx" \
-  --results-directory "$RESULTS_DIR" \
-  /p:DirectoryBuildPropsPath="$ROOT_DIR/Directory.Build.props" \
-  /p:DirectoryBuildTargetsPath="$ROOT_DIR/Directory.Build.targets"
+  --results-directory "$RESULTS_DIR"
 
 mapfile -t COVERAGE_FILES < <(find "$RESULTS_DIR" -type f -name "coverage.cobertura.xml" | sort)
 if [ "${#COVERAGE_FILES[@]}" -eq 0 ]; then

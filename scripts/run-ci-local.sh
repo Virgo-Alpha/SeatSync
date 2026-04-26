@@ -68,6 +68,7 @@ echo "Running local CI simulation (mode=$MODE)..."
 export CI=true
 export GITHUB_ACTIONS=true
 export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-/tmp/seatsync-dotnet}"
+export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 mkdir -p "$DOTNET_CLI_HOME"
 
 pushd "$TMP_DIR" >/dev/null

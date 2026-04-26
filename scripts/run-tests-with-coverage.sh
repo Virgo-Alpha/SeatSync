@@ -14,7 +14,9 @@ dotnet test "$ROOT_DIR/SeatSync.sln" \
   --configuration Release \
   --collect:"XPlat Code Coverage" \
   --logger "trx;LogFileName=test-results.trx" \
-  --results-directory "$RESULTS_DIR"
+  --results-directory "$RESULTS_DIR" \
+  /p:DirectoryBuildPropsPath="$ROOT_DIR/Directory.Build.props" \
+  /p:DirectoryBuildTargetsPath="$ROOT_DIR/Directory.Build.targets"
 
 mapfile -t COVERAGE_FILES < <(find "$RESULTS_DIR" -type f -name "coverage.cobertura.xml" | sort)
 if [ "${#COVERAGE_FILES[@]}" -eq 0 ]; then

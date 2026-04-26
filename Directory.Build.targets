@@ -13,27 +13,6 @@
   <Target Name="SanitizeInvalidLiteralWildcardItems"
           BeforeTargets="BeforeBuild;CoreCompile;RazorCoreCompile">
     <ItemGroup>
-      <_InvalidCompileItems Include="@(Compile)"
-                            Condition="'%(Compile.Identity)' == '**/*.cs'
-                                       or '%(Compile.Identity)' == '**\*.cs'
-                                       or '%(Compile.Identity)' == '**/*.razor'
-                                       or '%(Compile.Identity)' == '**\*.razor'
-                                       or '%(Compile.Identity)' == '**/*.cshtml'
-                                       or '%(Compile.Identity)' == '**\*.cshtml'
-                                       or '%(Compile.Identity)' == '**/*'
-                                       or '%(Compile.Identity)' == '**\*'" />
-      <_SanitizedCompile Include="@(Compile)"
-                         Condition="'%(Compile.Identity)' != '**/*.cs'
-                                    and '%(Compile.Identity)' != '**\*.cs'
-                                    and '%(Compile.Identity)' != '**/*.razor'
-                                    and '%(Compile.Identity)' != '**\*.razor'
-                                    and '%(Compile.Identity)' != '**/*.cshtml'
-                                    and '%(Compile.Identity)' != '**\*.cshtml'
-                                    and '%(Compile.Identity)' != '**/*'
-                                    and '%(Compile.Identity)' != '**\*'" />
-      <Compile Remove="@(Compile)" />
-      <Compile Include="@(_SanitizedCompile)" />
-
       <_InvalidContentItems Include="@(Content)"
                             Condition="'%(Content.Identity)' == '**/*.cs'
                                        or '%(Content.Identity)' == '**\*.cs'
@@ -133,20 +112,13 @@
                                           and '%(RazorGenerate.Identity)' != '**\*'" />
       <RazorGenerate Remove="@(RazorGenerate)" />
       <RazorGenerate Include="@(_SanitizedRazorGenerate)" />
-
-      <_ProgramCompile Include="@(Compile)"
-                       Condition="'%(Compile.Filename)%(Compile.Extension)' == 'Program.cs'" />
     </ItemGroup>
 
     <Message Importance="high"
-             Condition="'@(_InvalidCompileItems)' != ''
-                        or '@(_InvalidContentItems)' != ''
+             Condition="'@(_InvalidContentItems)' != ''
                         or '@(_InvalidNoneItems)' != ''
                         or '@(_InvalidRazorCompileItems)' != ''
                         or '@(_InvalidRazorGenerateItems)' != ''"
-             Text="Sanitized invalid literal wildcard identities. Compile: @(_InvalidCompileItems, ', ') | Content: @(_InvalidContentItems, ', ') | None: @(_InvalidNoneItems, ', ') | RazorCompile: @(_InvalidRazorCompileItems, ', ') | RazorGenerate: @(_InvalidRazorGenerateItems, ', ')" />
-
-    <Error Condition="'$(MSBuildProjectName)' == 'SeatSync.Api' and '@(_ProgramCompile)' == ''"
-           Text="Program.cs is missing from @(Compile) after wildcard sanitization." />
+             Text="Sanitized invalid literal wildcard identities. Content: @(_InvalidContentItems, ', ') | None: @(_InvalidNoneItems, ', ') | RazorCompile: @(_InvalidRazorCompileItems, ', ') | RazorGenerate: @(_InvalidRazorGenerateItems, ', ')" />
   </Target>
 </Project>

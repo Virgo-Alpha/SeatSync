@@ -13,74 +13,62 @@
   <Target Name="SanitizeInvalidLiteralWildcardItems"
           BeforeTargets="BeforeBuild;CoreCompile;RazorCoreCompile">
     <ItemGroup>
-      <_InvalidLiteralItems Include="@(Compile)"
-                            Condition="('%(Compile.Identity)' == '**/*.cs'
-                                        or '%(Compile.Identity)' == '**\*.cs'
-                                        or '%(Compile.Identity)' == '**/*.razor'
-                                        or '%(Compile.Identity)' == '**\*.razor'
-                                        or '%(Compile.Identity)' == '**/*.cshtml'
-                                        or '%(Compile.Identity)' == '**\*.cshtml'
-                                        or '%(Compile.Identity)' == '**/*'
-                                        or '%(Compile.Identity)' == '**\*')
-                                       and !Exists('%(Compile.FullPath)')" />
-      <_InvalidLiteralItems Include="@(Content)"
-                            Condition="('%(Content.Identity)' == '**/*.cs'
-                                        or '%(Content.Identity)' == '**\*.cs'
-                                        or '%(Content.Identity)' == '**/*.razor'
-                                        or '%(Content.Identity)' == '**\*.razor'
-                                        or '%(Content.Identity)' == '**/*.cshtml'
-                                        or '%(Content.Identity)' == '**\*.cshtml'
-                                        or '%(Content.Identity)' == '**/*.json'
-                                        or '%(Content.Identity)' == '**\*.json'
-                                        or '%(Content.Identity)' == '**/*.config'
-                                        or '%(Content.Identity)' == '**\*.config'
-                                        or '%(Content.Identity)' == '**/*'
-                                        or '%(Content.Identity)' == '**\*')
-                                       and !Exists('%(Content.FullPath)')" />
-      <_InvalidLiteralItems Include="@(None)"
-                            Condition="('%(None.Identity)' == '**/*.cs'
-                                        or '%(None.Identity)' == '**\*.cs'
-                                        or '%(None.Identity)' == '**/*.razor'
-                                        or '%(None.Identity)' == '**\*.razor'
-                                        or '%(None.Identity)' == '**/*.cshtml'
-                                        or '%(None.Identity)' == '**\*.cshtml'
-                                        or '%(None.Identity)' == '**/*.json'
-                                        or '%(None.Identity)' == '**\*.json'
-                                        or '%(None.Identity)' == '**/*.config'
-                                        or '%(None.Identity)' == '**\*.config'
-                                        or '%(None.Identity)' == '**/*'
-                                        or '%(None.Identity)' == '**\*')
-                                       and !Exists('%(None.FullPath)')" />
-      <_InvalidLiteralItems Include="@(RazorCompile)"
-                            Condition="('%(RazorCompile.Identity)' == '**/*.cs'
-                                        or '%(RazorCompile.Identity)' == '**\*.cs'
-                                        or '%(RazorCompile.Identity)' == '**/*.razor'
-                                        or '%(RazorCompile.Identity)' == '**\*.razor'
-                                        or '%(RazorCompile.Identity)' == '**/*.cshtml'
-                                        or '%(RazorCompile.Identity)' == '**\*.cshtml'
-                                        or '%(RazorCompile.Identity)' == '**/*'
-                                        or '%(RazorCompile.Identity)' == '**\*')
-                                       and !Exists('%(RazorCompile.FullPath)')" />
-      <_InvalidLiteralItems Include="@(RazorGenerate)"
-                            Condition="('%(RazorGenerate.Identity)' == '**/*.cs'
-                                        or '%(RazorGenerate.Identity)' == '**\*.cs'
-                                        or '%(RazorGenerate.Identity)' == '**/*.razor'
-                                        or '%(RazorGenerate.Identity)' == '**\*.razor'
-                                        or '%(RazorGenerate.Identity)' == '**/*.cshtml'
-                                        or '%(RazorGenerate.Identity)' == '**\*.cshtml'
-                                        or '%(RazorGenerate.Identity)' == '**/*'
-                                        or '%(RazorGenerate.Identity)' == '**\*')
-                                       and !Exists('%(RazorGenerate.FullPath)')" />
+      <!-- Remove escaped literals so wildcard text is treated as exact identity, not a glob. -->
+      <Compile Remove="$([MSBuild]::Escape('**/*.cs'))" />
+      <Compile Remove="$([MSBuild]::Escape('**\*.cs'))" />
+      <Compile Remove="$([MSBuild]::Escape('**/*.razor'))" />
+      <Compile Remove="$([MSBuild]::Escape('**\*.razor'))" />
+      <Compile Remove="$([MSBuild]::Escape('**/*.cshtml'))" />
+      <Compile Remove="$([MSBuild]::Escape('**\*.cshtml'))" />
+      <Compile Remove="$([MSBuild]::Escape('**/*'))" />
+      <Compile Remove="$([MSBuild]::Escape('**\*'))" />
 
-      <Compile Remove="@(_InvalidLiteralItems)" />
-      <Content Remove="@(_InvalidLiteralItems)" />
-      <None Remove="@(_InvalidLiteralItems)" />
-      <RazorCompile Remove="@(_InvalidLiteralItems)" />
-      <RazorGenerate Remove="@(_InvalidLiteralItems)" />
+      <Content Remove="$([MSBuild]::Escape('**/*.cs'))" />
+      <Content Remove="$([MSBuild]::Escape('**\*.cs'))" />
+      <Content Remove="$([MSBuild]::Escape('**/*.razor'))" />
+      <Content Remove="$([MSBuild]::Escape('**\*.razor'))" />
+      <Content Remove="$([MSBuild]::Escape('**/*.cshtml'))" />
+      <Content Remove="$([MSBuild]::Escape('**\*.cshtml'))" />
+      <Content Remove="$([MSBuild]::Escape('**/*.json'))" />
+      <Content Remove="$([MSBuild]::Escape('**\*.json'))" />
+      <Content Remove="$([MSBuild]::Escape('**/*.config'))" />
+      <Content Remove="$([MSBuild]::Escape('**\*.config'))" />
+      <Content Remove="$([MSBuild]::Escape('**/*'))" />
+      <Content Remove="$([MSBuild]::Escape('**\*'))" />
+
+      <None Remove="$([MSBuild]::Escape('**/*.cs'))" />
+      <None Remove="$([MSBuild]::Escape('**\*.cs'))" />
+      <None Remove="$([MSBuild]::Escape('**/*.razor'))" />
+      <None Remove="$([MSBuild]::Escape('**\*.razor'))" />
+      <None Remove="$([MSBuild]::Escape('**/*.cshtml'))" />
+      <None Remove="$([MSBuild]::Escape('**\*.cshtml'))" />
+      <None Remove="$([MSBuild]::Escape('**/*.json'))" />
+      <None Remove="$([MSBuild]::Escape('**\*.json'))" />
+      <None Remove="$([MSBuild]::Escape('**/*.config'))" />
+      <None Remove="$([MSBuild]::Escape('**\*.config'))" />
+      <None Remove="$([MSBuild]::Escape('**/*'))" />
+      <None Remove="$([MSBuild]::Escape('**\*'))" />
+
+      <RazorCompile Remove="$([MSBuild]::Escape('**/*.cs'))" />
+      <RazorCompile Remove="$([MSBuild]::Escape('**\*.cs'))" />
+      <RazorCompile Remove="$([MSBuild]::Escape('**/*.razor'))" />
+      <RazorCompile Remove="$([MSBuild]::Escape('**\*.razor'))" />
+      <RazorCompile Remove="$([MSBuild]::Escape('**/*.cshtml'))" />
+      <RazorCompile Remove="$([MSBuild]::Escape('**\*.cshtml'))" />
+      <RazorCompile Remove="$([MSBuild]::Escape('**/*'))" />
+      <RazorCompile Remove="$([MSBuild]::Escape('**\*'))" />
+
+      <RazorGenerate Remove="$([MSBuild]::Escape('**/*.cs'))" />
+      <RazorGenerate Remove="$([MSBuild]::Escape('**\*.cs'))" />
+      <RazorGenerate Remove="$([MSBuild]::Escape('**/*.razor'))" />
+      <RazorGenerate Remove="$([MSBuild]::Escape('**\*.razor'))" />
+      <RazorGenerate Remove="$([MSBuild]::Escape('**/*.cshtml'))" />
+      <RazorGenerate Remove="$([MSBuild]::Escape('**\*.cshtml'))" />
+      <RazorGenerate Remove="$([MSBuild]::Escape('**/*'))" />
+      <RazorGenerate Remove="$([MSBuild]::Escape('**\*'))" />
     </ItemGroup>
 
     <Message Importance="high"
-             Condition="'@(_InvalidLiteralItems)' != ''"
-             Text="Sanitized invalid literal wildcard items: @(_InvalidLiteralItems, ', ')" />
+             Text="Sanitized known invalid literal wildcard identities from MSBuild item groups." />
   </Target>
 </Project>

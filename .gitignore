@@ -26,4 +26,4 @@ Thumbs.db
 *.map
 
 .codex
-artifacts
+artifacts/test-results/*

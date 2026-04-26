@@ -1,0 +1,6 @@
+<Project>
+  <!--
+    Intentionally present to stop MSBuild from searching parent folders for
+    Directory.Build.targets on CI agents.
+  -->
+</Project>

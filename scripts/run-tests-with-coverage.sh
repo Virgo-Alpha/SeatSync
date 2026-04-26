@@ -13,6 +13,7 @@ echo "Running tests with coverage..."
 dotnet test "$ROOT_DIR/SeatSync.sln" \
   --configuration Release \
   --collect:"XPlat Code Coverage" \
+  --settings "$ROOT_DIR/coverlet.runsettings" \
   --logger "trx;LogFileName=test-results.trx" \
   --results-directory "$RESULTS_DIR" \
   /p:DirectoryBuildPropsPath="$ROOT_DIR/Directory.Build.props" \

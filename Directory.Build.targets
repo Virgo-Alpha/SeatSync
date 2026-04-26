@@ -3,4 +3,21 @@
     Intentionally present to stop MSBuild from searching parent folders for
     Directory.Build.targets on CI agents.
   -->
+
+  <!--
+    Defensive CI hardening: some hosted runners/import chains can inject a
+    literal "**/*.cs" compile item, which Roslyn treats as a file path and fails
+    with CS2021/CS2001. Remove only those exact literal entries before compile.
+  -->
+  <Target Name="SanitizeInvalidLiteralCompileGlobs" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <_InvalidLiteralCompile Include="@(Compile)"
+                              Condition="'%(Identity)' == '**/*.cs' or '%(Identity)' == '**\*.cs'" />
+      <Compile Remove="@(_InvalidLiteralCompile)" />
+    </ItemGroup>
+
+    <Message Importance="high"
+             Condition="'@(_InvalidLiteralCompile)' != ''"
+             Text="Removed invalid literal compile items: @(_InvalidLiteralCompile, ', ')" />
+  </Target>
 </Project>

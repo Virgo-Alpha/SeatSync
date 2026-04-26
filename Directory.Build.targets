@@ -13,62 +13,140 @@
   <Target Name="SanitizeInvalidLiteralWildcardItems"
           BeforeTargets="BeforeBuild;CoreCompile;RazorCoreCompile">
     <ItemGroup>
-      <!-- Remove escaped literals so wildcard text is treated as exact identity, not a glob. -->
-      <Compile Remove="$([MSBuild]::Escape('**/*.cs'))" />
-      <Compile Remove="$([MSBuild]::Escape('**\*.cs'))" />
-      <Compile Remove="$([MSBuild]::Escape('**/*.razor'))" />
-      <Compile Remove="$([MSBuild]::Escape('**\*.razor'))" />
-      <Compile Remove="$([MSBuild]::Escape('**/*.cshtml'))" />
-      <Compile Remove="$([MSBuild]::Escape('**\*.cshtml'))" />
-      <Compile Remove="$([MSBuild]::Escape('**/*'))" />
-      <Compile Remove="$([MSBuild]::Escape('**\*'))" />
+      <_InvalidCompileItems Include="@(Compile)"
+                            Condition="'%(Compile.Identity)' == '**/*.cs'
+                                       or '%(Compile.Identity)' == '**\*.cs'
+                                       or '%(Compile.Identity)' == '**/*.razor'
+                                       or '%(Compile.Identity)' == '**\*.razor'
+                                       or '%(Compile.Identity)' == '**/*.cshtml'
+                                       or '%(Compile.Identity)' == '**\*.cshtml'
+                                       or '%(Compile.Identity)' == '**/*'
+                                       or '%(Compile.Identity)' == '**\*'" />
+      <_SanitizedCompile Include="@(Compile)"
+                         Condition="'%(Compile.Identity)' != '**/*.cs'
+                                    and '%(Compile.Identity)' != '**\*.cs'
+                                    and '%(Compile.Identity)' != '**/*.razor'
+                                    and '%(Compile.Identity)' != '**\*.razor'
+                                    and '%(Compile.Identity)' != '**/*.cshtml'
+                                    and '%(Compile.Identity)' != '**\*.cshtml'
+                                    and '%(Compile.Identity)' != '**/*'
+                                    and '%(Compile.Identity)' != '**\*'" />
+      <Compile Remove="@(Compile)" />
+      <Compile Include="@(_SanitizedCompile)" />
 
-      <Content Remove="$([MSBuild]::Escape('**/*.cs'))" />
-      <Content Remove="$([MSBuild]::Escape('**\*.cs'))" />
-      <Content Remove="$([MSBuild]::Escape('**/*.razor'))" />
-      <Content Remove="$([MSBuild]::Escape('**\*.razor'))" />
-      <Content Remove="$([MSBuild]::Escape('**/*.cshtml'))" />
-      <Content Remove="$([MSBuild]::Escape('**\*.cshtml'))" />
-      <Content Remove="$([MSBuild]::Escape('**/*.json'))" />
-      <Content Remove="$([MSBuild]::Escape('**\*.json'))" />
-      <Content Remove="$([MSBuild]::Escape('**/*.config'))" />
-      <Content Remove="$([MSBuild]::Escape('**\*.config'))" />
-      <Content Remove="$([MSBuild]::Escape('**/*'))" />
-      <Content Remove="$([MSBuild]::Escape('**\*'))" />
+      <_InvalidContentItems Include="@(Content)"
+                            Condition="'%(Content.Identity)' == '**/*.cs'
+                                       or '%(Content.Identity)' == '**\*.cs'
+                                       or '%(Content.Identity)' == '**/*.razor'
+                                       or '%(Content.Identity)' == '**\*.razor'
+                                       or '%(Content.Identity)' == '**/*.cshtml'
+                                       or '%(Content.Identity)' == '**\*.cshtml'
+                                       or '%(Content.Identity)' == '**/*.json'
+                                       or '%(Content.Identity)' == '**\*.json'
+                                       or '%(Content.Identity)' == '**/*.config'
+                                       or '%(Content.Identity)' == '**\*.config'
+                                       or '%(Content.Identity)' == '**/*'
+                                       or '%(Content.Identity)' == '**\*'" />
+      <_SanitizedContent Include="@(Content)"
+                         Condition="'%(Content.Identity)' != '**/*.cs'
+                                    and '%(Content.Identity)' != '**\*.cs'
+                                    and '%(Content.Identity)' != '**/*.razor'
+                                    and '%(Content.Identity)' != '**\*.razor'
+                                    and '%(Content.Identity)' != '**/*.cshtml'
+                                    and '%(Content.Identity)' != '**\*.cshtml'
+                                    and '%(Content.Identity)' != '**/*.json'
+                                    and '%(Content.Identity)' != '**\*.json'
+                                    and '%(Content.Identity)' != '**/*.config'
+                                    and '%(Content.Identity)' != '**\*.config'
+                                    and '%(Content.Identity)' != '**/*'
+                                    and '%(Content.Identity)' != '**\*'" />
+      <Content Remove="@(Content)" />
+      <Content Include="@(_SanitizedContent)" />
 
-      <None Remove="$([MSBuild]::Escape('**/*.cs'))" />
-      <None Remove="$([MSBuild]::Escape('**\*.cs'))" />
-      <None Remove="$([MSBuild]::Escape('**/*.razor'))" />
-      <None Remove="$([MSBuild]::Escape('**\*.razor'))" />
-      <None Remove="$([MSBuild]::Escape('**/*.cshtml'))" />
-      <None Remove="$([MSBuild]::Escape('**\*.cshtml'))" />
-      <None Remove="$([MSBuild]::Escape('**/*.json'))" />
-      <None Remove="$([MSBuild]::Escape('**\*.json'))" />
-      <None Remove="$([MSBuild]::Escape('**/*.config'))" />
-      <None Remove="$([MSBuild]::Escape('**\*.config'))" />
-      <None Remove="$([MSBuild]::Escape('**/*'))" />
-      <None Remove="$([MSBuild]::Escape('**\*'))" />
+      <_InvalidNoneItems Include="@(None)"
+                         Condition="'%(None.Identity)' == '**/*.cs'
+                                    or '%(None.Identity)' == '**\*.cs'
+                                    or '%(None.Identity)' == '**/*.razor'
+                                    or '%(None.Identity)' == '**\*.razor'
+                                    or '%(None.Identity)' == '**/*.cshtml'
+                                    or '%(None.Identity)' == '**\*.cshtml'
+                                    or '%(None.Identity)' == '**/*.json'
+                                    or '%(None.Identity)' == '**\*.json'
+                                    or '%(None.Identity)' == '**/*.config'
+                                    or '%(None.Identity)' == '**\*.config'
+                                    or '%(None.Identity)' == '**/*'
+                                    or '%(None.Identity)' == '**\*'" />
+      <_SanitizedNone Include="@(None)"
+                      Condition="'%(None.Identity)' != '**/*.cs'
+                                 and '%(None.Identity)' != '**\*.cs'
+                                 and '%(None.Identity)' != '**/*.razor'
+                                 and '%(None.Identity)' != '**\*.razor'
+                                 and '%(None.Identity)' != '**/*.cshtml'
+                                 and '%(None.Identity)' != '**\*.cshtml'
+                                 and '%(None.Identity)' != '**/*.json'
+                                 and '%(None.Identity)' != '**\*.json'
+                                 and '%(None.Identity)' != '**/*.config'
+                                 and '%(None.Identity)' != '**\*.config'
+                                 and '%(None.Identity)' != '**/*'
+                                 and '%(None.Identity)' != '**\*'" />
+      <None Remove="@(None)" />
+      <None Include="@(_SanitizedNone)" />
 
-      <RazorCompile Remove="$([MSBuild]::Escape('**/*.cs'))" />
-      <RazorCompile Remove="$([MSBuild]::Escape('**\*.cs'))" />
-      <RazorCompile Remove="$([MSBuild]::Escape('**/*.razor'))" />
-      <RazorCompile Remove="$([MSBuild]::Escape('**\*.razor'))" />
-      <RazorCompile Remove="$([MSBuild]::Escape('**/*.cshtml'))" />
-      <RazorCompile Remove="$([MSBuild]::Escape('**\*.cshtml'))" />
-      <RazorCompile Remove="$([MSBuild]::Escape('**/*'))" />
-      <RazorCompile Remove="$([MSBuild]::Escape('**\*'))" />
+      <_InvalidRazorCompileItems Include="@(RazorCompile)"
+                                 Condition="'%(RazorCompile.Identity)' == '**/*.cs'
+                                            or '%(RazorCompile.Identity)' == '**\*.cs'
+                                            or '%(RazorCompile.Identity)' == '**/*.razor'
+                                            or '%(RazorCompile.Identity)' == '**\*.razor'
+                                            or '%(RazorCompile.Identity)' == '**/*.cshtml'
+                                            or '%(RazorCompile.Identity)' == '**\*.cshtml'
+                                            or '%(RazorCompile.Identity)' == '**/*'
+                                            or '%(RazorCompile.Identity)' == '**\*'" />
+      <_SanitizedRazorCompile Include="@(RazorCompile)"
+                              Condition="'%(RazorCompile.Identity)' != '**/*.cs'
+                                         and '%(RazorCompile.Identity)' != '**\*.cs'
+                                         and '%(RazorCompile.Identity)' != '**/*.razor'
+                                         and '%(RazorCompile.Identity)' != '**\*.razor'
+                                         and '%(RazorCompile.Identity)' != '**/*.cshtml'
+                                         and '%(RazorCompile.Identity)' != '**\*.cshtml'
+                                         and '%(RazorCompile.Identity)' != '**/*'
+                                         and '%(RazorCompile.Identity)' != '**\*'" />
+      <RazorCompile Remove="@(RazorCompile)" />
+      <RazorCompile Include="@(_SanitizedRazorCompile)" />
 
-      <RazorGenerate Remove="$([MSBuild]::Escape('**/*.cs'))" />
-      <RazorGenerate Remove="$([MSBuild]::Escape('**\*.cs'))" />
-      <RazorGenerate Remove="$([MSBuild]::Escape('**/*.razor'))" />
-      <RazorGenerate Remove="$([MSBuild]::Escape('**\*.razor'))" />
-      <RazorGenerate Remove="$([MSBuild]::Escape('**/*.cshtml'))" />
-      <RazorGenerate Remove="$([MSBuild]::Escape('**\*.cshtml'))" />
-      <RazorGenerate Remove="$([MSBuild]::Escape('**/*'))" />
-      <RazorGenerate Remove="$([MSBuild]::Escape('**\*'))" />
+      <_InvalidRazorGenerateItems Include="@(RazorGenerate)"
+                                  Condition="'%(RazorGenerate.Identity)' == '**/*.cs'
+                                             or '%(RazorGenerate.Identity)' == '**\*.cs'
+                                             or '%(RazorGenerate.Identity)' == '**/*.razor'
+                                             or '%(RazorGenerate.Identity)' == '**\*.razor'
+                                             or '%(RazorGenerate.Identity)' == '**/*.cshtml'
+                                             or '%(RazorGenerate.Identity)' == '**\*.cshtml'
+                                             or '%(RazorGenerate.Identity)' == '**/*'
+                                             or '%(RazorGenerate.Identity)' == '**\*'" />
+      <_SanitizedRazorGenerate Include="@(RazorGenerate)"
+                               Condition="'%(RazorGenerate.Identity)' != '**/*.cs'
+                                          and '%(RazorGenerate.Identity)' != '**\*.cs'
+                                          and '%(RazorGenerate.Identity)' != '**/*.razor'
+                                          and '%(RazorGenerate.Identity)' != '**\*.razor'
+                                          and '%(RazorGenerate.Identity)' != '**/*.cshtml'
+                                          and '%(RazorGenerate.Identity)' != '**\*.cshtml'
+                                          and '%(RazorGenerate.Identity)' != '**/*'
+                                          and '%(RazorGenerate.Identity)' != '**\*'" />
+      <RazorGenerate Remove="@(RazorGenerate)" />
+      <RazorGenerate Include="@(_SanitizedRazorGenerate)" />
+
+      <_ProgramCompile Include="@(Compile)"
+                       Condition="'%(Compile.Filename)%(Compile.Extension)' == 'Program.cs'" />
     </ItemGroup>
 
     <Message Importance="high"
-             Text="Sanitized known invalid literal wildcard identities from MSBuild item groups." />
+             Condition="'@(_InvalidCompileItems)' != ''
+                        or '@(_InvalidContentItems)' != ''
+                        or '@(_InvalidNoneItems)' != ''
+                        or '@(_InvalidRazorCompileItems)' != ''
+                        or '@(_InvalidRazorGenerateItems)' != ''"
+             Text="Sanitized invalid literal wildcard identities. Compile: @(_InvalidCompileItems, ', ') | Content: @(_InvalidContentItems, ', ') | None: @(_InvalidNoneItems, ', ') | RazorCompile: @(_InvalidRazorCompileItems, ', ') | RazorGenerate: @(_InvalidRazorGenerateItems, ', ')" />
+
+    <Error Condition="'$(MSBuildProjectName)' == 'SeatSync.Api' and '@(_ProgramCompile)' == ''"
+           Text="Program.cs is missing from @(Compile) after wildcard sanitization." />
   </Target>
 </Project>

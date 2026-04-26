@@ -46,6 +46,12 @@ if [[ "$MODE" != "working-tree" && "$MODE" != "head" ]]; then
   exit 2
 fi
 
+if [[ "$MODE" == "head" ]]; then
+  if [[ -n "$(git -C "$ROOT_DIR" status --porcelain)" ]]; then
+    echo "Warning: --mode head uses committed HEAD only; uncommitted local changes are ignored." >&2
+  fi
+fi
+
 TMP_DIR="$(mktemp -d /tmp/seatsync-ci-local.XXXXXX)"
 if [[ "$KEEP_TEMP" != "true" ]]; then
   trap 'rm -rf "$TMP_DIR"' EXIT

@@ -5,50 +5,54 @@
   -->
 
   <!--
-    Defensive CI hardening: some hosted runners/import chains can inject
-    wildcard literals (for example "**/*.cs" or "**/*.razor") as raw item
-    identities instead of expanded files, which causes CS2021/CS2001.
-    Remove wildcard-like entries that do not exist on disk across item groups
-    consumed by C# and Razor compilation.
+    Defensive CI hardening for C# compile inputs only.
+    Some CI import chains can leak literal wildcard identities into @(Compile),
+    which Roslyn then treats as filenames (CS2021/CS2001).
   -->
-  <Target Name="SanitizeInvalidLiteralCompileGlobs" BeforeTargets="BeforeBuild;RazorCoreCompile;CoreCompile">
+  <Target Name="SanitizeInvalidLiteralCompileItems" BeforeTargets="CoreCompile">
     <ItemGroup>
       <_InvalidCompileItems Include="@(Compile)"
-                            Condition="!Exists('%(Compile.FullPath)')
-                                       and ( $([System.String]::Copy('%(Compile.Identity)').Contains('*'))
-                                             or $([System.String]::Copy('%(Compile.Identity)').Contains('?')) )" />
-
-      <_InvalidContentItems Include="@(Content)"
-                            Condition="!Exists('%(Content.FullPath)')
-                                       and ( $([System.String]::Copy('%(Content.Identity)').Contains('*'))
-                                             or $([System.String]::Copy('%(Content.Identity)').Contains('?')) )" />
-
-      <_InvalidNoneItems Include="@(None)"
-                         Condition="!Exists('%(None.FullPath)')
-                                    and ( $([System.String]::Copy('%(None.Identity)').Contains('*'))
-                                          or $([System.String]::Copy('%(None.Identity)').Contains('?')) )" />
-
-      <_InvalidRazorCompileItems Include="@(RazorCompile)"
-                                 Condition="!Exists('%(RazorCompile.FullPath)')
-                                            and ( $([System.String]::Copy('%(RazorCompile.Identity)').Contains('*'))
-                                                  or $([System.String]::Copy('%(RazorCompile.Identity)').Contains('?')) )" />
-
-      <_InvalidRazorGenerateItems Include="@(RazorGenerate)"
-                                  Condition="!Exists('%(RazorGenerate.FullPath)')
-                                             and ( $([System.String]::Copy('%(RazorGenerate.Identity)').Contains('*'))
-                                                   or $([System.String]::Copy('%(RazorGenerate.Identity)').Contains('?')) )" />
-
-      <_InvalidLiteralItems Include="@(_InvalidCompileItems);@(_InvalidContentItems);@(_InvalidNoneItems);@(_InvalidRazorCompileItems);@(_InvalidRazorGenerateItems)" />
+                            Condition="('%(Compile.Identity)' == '**/*.cs' or '%(Compile.Identity)' == '**\*.cs')
+                                       and !Exists('%(Compile.FullPath)')" />
 
       <Compile Remove="@(_InvalidCompileItems)" />
-      <Content Remove="@(_InvalidContentItems)" />
-      <None Remove="@(_InvalidNoneItems)" />
+      <_ProgramCompile Include="@(Compile)" Condition="'%(Compile.Filename)%(Compile.Extension)' == 'Program.cs'" />
+    </ItemGroup>
+
+    <Message Importance="high"
+             Condition="'@(_InvalidCompileItems)' != ''"
+             Text="Sanitized invalid literal compile items: @(_InvalidCompileItems, ', ')" />
+
+    <Warning Condition="'$(MSBuildProjectName)' == 'SeatSync.Api' and '@(_ProgramCompile)' == ''"
+             Text="Program.cs not found in @(Compile) before CoreCompile for SeatSync.Api. Check upstream MSBuild imports." />
+  </Target>
+
+  <!--
+    Razor-specific sanitization for literal wildcard identities leaked into
+    Razor item groups in CI.
+  -->
+  <Target Name="SanitizeInvalidLiteralRazorItems" BeforeTargets="RazorCoreCompile">
+    <ItemGroup>
+      <_InvalidRazorCompileItems Include="@(RazorCompile)"
+                                 Condition="('%(RazorCompile.Identity)' == '**/*.razor'
+                                             or '%(RazorCompile.Identity)' == '**\*.razor'
+                                             or '%(RazorCompile.Identity)' == '**/*.cshtml'
+                                             or '%(RazorCompile.Identity)' == '**\*.cshtml')
+                                            and !Exists('%(RazorCompile.FullPath)')" />
+
+      <_InvalidRazorGenerateItems Include="@(RazorGenerate)"
+                                  Condition="('%(RazorGenerate.Identity)' == '**/*.razor'
+                                              or '%(RazorGenerate.Identity)' == '**\*.razor'
+                                              or '%(RazorGenerate.Identity)' == '**/*.cshtml'
+                                              or '%(RazorGenerate.Identity)' == '**\*.cshtml')
+                                             and !Exists('%(RazorGenerate.FullPath)')" />
+
       <RazorCompile Remove="@(_InvalidRazorCompileItems)" />
       <RazorGenerate Remove="@(_InvalidRazorGenerateItems)" />
     </ItemGroup>
 
     <Message Importance="high"
-             Condition="'@(_InvalidLiteralItems)' != ''"
-             Text="Sanitized invalid literal items from build: @(_InvalidLiteralItems, ', ')" />
+             Condition="'@(_InvalidRazorCompileItems)' != '' or '@(_InvalidRazorGenerateItems)' != ''"
+             Text="Sanitized invalid literal razor items. Compile: @(_InvalidRazorCompileItems, ', ') | Generate: @(_InvalidRazorGenerateItems, ', ')" />
   </Target>
 </Project>

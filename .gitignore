@@ -24,3 +24,6 @@ obj/
 .DS_Store
 Thumbs.db
 *.map
+
+.codex
+artifacts
